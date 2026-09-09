@@ -10,36 +10,6 @@
       <text>Fichier créé avec le convertisseur KML2GPX de Gpstraces.net, un site de  partage de traces GPS de randonnées, de photos - Cartes GPS routables avec lignes de niveau gratuites - Création en ligne d&apos;un parcours aux formats GPX/KML avec suivi de route, calcul de l&apos;IBP, horodatage et altitude.</text>
     </link>
   </metadata>
-  <wpt lat="38.939807" lon="23.081608">
-    <ele>0</ele>
-    <name>Chantier Dimstef</name>
-    <sym>Pin, Green</sym>
-  </wpt>
-  <wpt lat="38.949235" lon="23.086747">
-    <ele>0</ele>
-    <name>Orei</name>
-    <sym>Pin, Green</sym>
-  </wpt>
-  <wpt lat="38.835317" lon="22.93317">
-    <ele>0</ele>
-    <name>Gregolimano</name>
-    <sym>Pin, Green</sym>
-  </wpt>
-  <wpt lat="38.672265" lon="23.087832">
-    <ele>0</ele>
-    <name>Atalantonisi</name>
-    <sym>Pin, Green</sym>
-  </wpt>
-  <wpt lat="38.465855" lon="23.592797">
-    <ele>0</ele>
-    <name>Chalkida 1</name>
-    <sym>Pin, Green</sym>
-  </wpt>
-  <wpt lat="38.461787" lon="23.584843">
-    <ele>0</ele>
-    <name>Chalkida 2</name>
-    <sym>Pin, Green</sym>
-  </wpt>
   <trk>
     <name>2022-04-28 (1)</name>
     <desc>Statistics computed from imported data
