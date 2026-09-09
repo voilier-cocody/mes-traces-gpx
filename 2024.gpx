@@ -7,21 +7,6 @@
       <link href="https://gpx.studio"/>
     </author>
   </metadata>
-  <wpt lat="47.929229959" lon="-4.548575638">
-    <time>2023-03-07T18:12:04.000Z</time>
-    <sym>triangle</sym>
-    <type>WPT</type>
-  </wpt>
-  <wpt lat="39.123675617" lon="26.598760915">
-    <time>2023-05-24T17:08:37.000Z</time>
-    <sym>triangle</sym>
-    <type>WPT</type>
-  </wpt>
-  <wpt lat="47.04584277" lon="16.359962984">
-    <time>2023-10-12T12:32:20.000Z</time>
-    <sym>triangle</sym>
-    <type>WPT</type>
-  </wpt>
   <trk>
     <trkseg>
       <trkpt lat="43.409800833" lon="5.074490833">
@@ -4006,13 +3991,6 @@
       </trkpt>
       <trkpt lat="43.400523667" lon="5.034775167">
         <time>2024-10-14T15:22:13.000Z</time>
-      </trkpt>
-    </trkseg>
-  </trk>
-  <trk>
-    <trkseg>
-      <trkpt lat="38.835032497" lon="20.711883823">
-        <time>2023-10-02T17:39:11.000Z</time>
       </trkpt>
     </trkseg>
   </trk>
