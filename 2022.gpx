@@ -1902,19 +1902,19 @@
     <trkseg>
       <trkpt lat="38.963406801" lon="20.758957518">
         <ele>0</ele>
-        <time>2023-07-27T07:00:00.000Z</time>
+        <time>2022-07-27T07:00:00.000Z</time>
       </trkpt>
       <trkpt lat="38.959710124" lon="20.763626774">
         <ele>0</ele>
-        <time>2023-07-27T07:03:27.254Z</time>
+        <time>2022-07-27T07:03:27.254Z</time>
       </trkpt>
       <trkpt lat="38.954494842" lon="20.762735371">
         <ele>0</ele>
-        <time>2023-07-27T07:06:57.697Z</time>
+        <time>2022-07-27T07:06:57.697Z</time>
       </trkpt>
       <trkpt lat="38.95152394" lon="20.765367133">
         <ele>0</ele>
-        <time>2023-07-27T07:09:21.999Z</time>
+        <time>2022-07-27T07:09:21.999Z</time>
       </trkpt>
     </trkseg>
   </trk>
