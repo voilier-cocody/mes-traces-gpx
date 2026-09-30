@@ -3,42 +3,49 @@
     "titre": "2026 - La Corse",
     "debut": "2026-01-01",
     "fin": "2026-12-31",
-    "url": "https://cocody81.blogspot.com/2026/09/2026.html"
+    "url": "https://cocody81.blogspot.com/2026/09/2026.html",
+    "couleur": "#E63946"
   },
   {
     "titre": "2025",
     "debut": "2025-01-01",
     "fin": "2025-12-31",
-    "url": "https://cocody81.blogspot.com/2026/09/2025.html"
+    "url": "https://cocody81.blogspot.com/2026/09/2025.html",
+    "couleur": "#F4A261"
   },
   {
     "titre": "2024 - Les Baléares",
     "debut": "2024-01-01",
     "fin": "2024-12-31",
-    "url": "https://cocody81.blogspot.com/2026/09/2024.html"
+    "url": "https://cocody81.blogspot.com/2026/09/2024.html",
+    "couleur": "#2A9D8F"
   },
   {
     "titre": "Août 2023",
     "debut": "2023-08-01",
     "fin": "2023-08-31",
-    "url": "https://cocody81.blogspot.com/2023/08/aout-2023.html"
+    "url": "https://cocody81.blogspot.com/2023/08/aout-2023.html",
+    "couleur": "#1D3557"
   },
   {
     "titre": "Retour en France",
     "debut": "2023-07-01",
     "fin": "2023-07-30",
-    "url": "https://cocody81.blogspot.com/2023/10/test-center-map.html"
+    "url": "https://cocody81.blogspot.com/2023/10/test-center-map.html",
+    "couleur": "#457B9D"
   },
   {
     "titre": "Retour en mer Ionienne",
     "debut": "2022-07-01",
     "fin": "2022-09-30",
-    "url": "https://cocody81.blogspot.com/2023/10/test_13.html"
+    "url": "https://cocody81.blogspot.com/2023/10/test_13.html",
+    "couleur": "#9B5DE5"
   },
   {
     "titre": "Premières navigations",
     "debut": "2022-04-01",
     "fin": "2022-05-31",
-    "url": "https://cocody81.blogspot.com/2023/10/test.html"
+    "url": "https://cocody81.blogspot.com/2023/10/test.html",
+    "couleur": "#00F5D4"
   }
 ]
