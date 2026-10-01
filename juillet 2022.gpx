@@ -10,8 +10,7 @@
       <text>Fichier créé avec le convertisseur KML2GPX de Gpstraces.net, un site de  partage de traces GPS de randonnées, de photos - Cartes GPS routables avec lignes de niveau gratuites - Création en ligne d&apos;un parcours aux formats GPX/KML avec suivi de route, calcul de l&apos;IBP, horodatage et altitude.</text>
     </link>
   </metadata>
-
-  <trk>
+<trk>
     <name>2022-07-11</name>
     <trkseg>
       <trkpt lat="38.340998787" lon="23.723335088">
