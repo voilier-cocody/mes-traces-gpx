@@ -1,10 +1,6 @@
 <?xml version="1.0"?>
 <gpx version="1.1" creator="OpenCPN" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxx="http://www.garmin.com/xmlschemas/GpxExtensions/v3" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd http://www.garmin.com/xmlschemas/GpxExtensions/v3 http://www8.garmin.com/xmlschemas/GpxExtensionsv3.xsd" xmlns:opencpn="http://www.opencpn.org">
   <trk>
-    <extensions>
-      <opencpn:guid>20be0000-3e0e-4bea-8d61-0266786fffff</opencpn:guid>
-      <opencpn:viz>1</opencpn:viz>
-    </extensions>
     <trkseg>
       <trkpt lat="43.400201667" lon="5.035735000">
         <time>2026-08-04T05:54:04Z</time>
