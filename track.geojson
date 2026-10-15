@@ -1,0 +1,21 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.22967430958995,
+          48.72986652852896
+        ]
+      },
+      "properties": {
+        "time": "2026-10-15T14:19:20.055Z",
+        "accuracy": 11.029690277588903,
+        "speed": null,
+        "heading": null
+      }
+    }
+  ]
+}
