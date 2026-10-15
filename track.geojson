@@ -32,6 +32,22 @@
         "speed": null,
         "heading": null
       }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.229672836861224,
+          48.729867379012155
+        ]
+      },
+      "properties": {
+        "time": "2026-10-15T14:30:06.934Z",
+        "accuracy": 9.401956537043334,
+        "speed": null,
+        "heading": null
+      }
     }
   ]
 }
