@@ -1,3 +1,19 @@
+name: AIS position
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-position:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -6,44 +22,13 @@
         env:
           AISSTREAM_API_KEY: ${{ secrets.AISSTREAM_API_KEY }}
           MMSI: "227620210"
+        run: node .github/scripts/ais.js
+
+      - name: Commit si changement
         run: |
-          node - <<'EOF' > location.json
-          const key = process.env.AISSTREAM_API_KEY;
-          const mmsi = process.env.MMSI;
-          const socket = new WebSocket("wss://stream.aisstream.io/v0/stream");
-          const timeout = setTimeout(() => {
-            console.error("Timeout : aucun message AIS reçu");
-            socket.close();
-            process.exit(1);
-          }, 240000);
-          socket.onopen = () => {
-            const sub = {
-              APIKey: key,
-              BoundingBoxes: [[[-90, -180], [90, 180]]],
-              FiltersShipMMSI: [mmsi],
-              FilterMessageTypes: ["PositionReport"],
-            };
-            socket.send(JSON.stringify(sub));
-          };
-          socket.onmessage = (ev) => {
-            const msg = JSON.parse(ev.data);
-            const p = msg.Message?.PositionReport;
-            if (!p) return;
-            const out = {
-              latitude: p.Latitude,
-              longitude: p.Longitude,
-              date: new Date(p.Timestamp ?? Date.now()).toISOString(),
-              sog: p.Sog ?? null,
-              cog: p.Cog ?? null,
-              source: "ais",
-            };
-            console.log(JSON.stringify(out, null, 2));
-            clearTimeout(timeout);
-            socket.close();
-            process.exit(0);
-          };
-          socket.onerror = (e) => {
-            console.error("WebSocket : " + (e.message ?? "erreur"));
-            process.exit(1);
-          };
-          EOF
+          git config user.name "ais-bot"
+          git config user.email "actions@github.com"
+          git add location.json
+          git diff --cached --quiet && echo "Pas de changement" && exit 0
+          git commit -m "Position AIS $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          git push
