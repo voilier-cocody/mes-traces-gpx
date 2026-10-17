@@ -19,6 +19,7 @@ jobs:
           AISSTREAM_API_KEY: ${{ secrets.AISSTREAM_API_KEY }}
           MMSI: "227620210"
         run: |
+          npn install ws
           node - <<'EOF' > location.json
           const WebSocket = require("ws");
           const key = process.env.AISSTREAM_API_KEY;
