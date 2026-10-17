@@ -14,23 +14,7 @@ socket.onopen = () => {
     FilterMessageTypes: ["PositionReport"],
   }));
 };
-socket.onmessage = (ev) => {
-  const msg = JSON.parse(ev.data);
-  const p = msg.Message?.PositionReport;
-  if (!p) return;
-  const out = {
-    latitude: p.Latitude,
-    longitude: p.Longitude,
-    date: new Date(p.Timestamp ?? Date.now()).toISOString(),
-    sog: p.Sog ?? null,
-    cog: p.Cog ?? null,
-    source: "ais",
-  };
-  require("fs").writeFileSync("location.json", JSON.stringify(out, null, 2));
-  clearTimeout(timeout);
-  socket.close();
-  process.exit(0);
-};
+
 socket.onerror = (e) => {
   console.error("WebSocket : " + (e.message ?? "erreur"));
   process.exit(1);
