@@ -4,7 +4,7 @@ const socket = new WebSocket("wss://stream.aisstream.io/v0/stream");
 const timeout = setTimeout(() => {
   console.error("Timeout : aucun message AIS reçu");
   socket.close();
-  process.exit(1);
+  process.exit(0);
 }, 240000);
 socket.onopen = () => {
   socket.send(JSON.stringify({
