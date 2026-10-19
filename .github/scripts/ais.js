@@ -10,7 +10,7 @@ if (!key || !mmsi) {
 
 async function getLatestPosition() {
   try {
-    const response = await fetch(`https://api.vesselapi.com/v1/vessel/227904590/position?filter.idType=mmsi`, {
+    const response = await fetch(`https://api.vesselapi.com/v1/vessel/${mmsi}/position?filter.idType=mmsi`, {
       headers: { 'Authorization': `Bearer ${key}` }
     });
 
