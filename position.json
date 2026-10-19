@@ -1,6 +1,8 @@
 {
-  "latitude": 47.668224051772654,
-  "longitude": -2.9800044619420705,
-  "date": "2026-10-19T16:49:34.221Z",
-  "source": "iPhone"
+  "latitude": 39.20098,
+  "longitude": 9.12512,
+  "date": "2026-10-19T12:22:53.000Z",
+  "sog": 0.1,
+  "cog": null,
+  "source": "AIS"
 }
