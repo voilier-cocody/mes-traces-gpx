@@ -8,8 +8,7 @@ if (!key || !mmsi) {
   process.exit(1);
 }
 
-// Reconnexion à l'URL de base brute requise
-const socket = new WebSocket("wss://stream.aisstream.io/v0/stream");
+const socket = new WebSocket("wss://ais.openwaters.io/v0/stream");
 
 const timeout = setTimeout(() => {
   console.error(`Timeout : aucun message AIS reçu pour le MMSI ${mmsi} après 4 minutes.`);
@@ -26,6 +25,7 @@ socket.onopen = () => {
     BoundingBoxes: [[[-90, -180], [90, 180]]], // Définition correcte des limites mondiales (Worldwide)
     FiltersShipMMSI: [String(mmsi)],
     FilterMessageTypes: ["PositionReport"],
+    snapshot: true
   }));
 };
 
