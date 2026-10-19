@@ -41,18 +41,17 @@ async function getLatestPosition() {
     }
     // -------------------------------
     
-    // Extraction des données selon la structure de l'API choisie
-    const out = {
-      latitude: data.latitude,
-      longitude: data.longitude,
-      date: new Date(data.timestamp).toISOString(),
-      sog: data.speed ?? null,
-      cog: data.course ?? null,
-      source: "ais",
+      const out = {
+      latitude: p.latitude ?? p.lat,
+      longitude: p.longitude ?? p.lon,
+      date: finalDate,
+      sog: p.speed ?? p.sog ?? null,
+      cog: p.course ?? p.cog ?? null,
+      source: "vesselapi",
     };
 
     fs.writeFileSync("position.json", JSON.stringify(out, null, 2));
-    console.log("Position mise à jour avec succès via API REST.");
+    console.log("Fichier position.json mis à jour avec succès !");
     process.exit(0);
 
   } catch (error) {
