@@ -11,7 +11,7 @@ if (!key || !mmsi) {
 async function getLatestPosition() {
   try {
     // Exemple d'appel HTTP vers un point de terminaison REST de position de navire
-    const response = await fetch(`https://vesselapi.com{mmsi}/position`, {
+    const response = await fetch(`https://api.vesselapi.com/v1/vessel/{mmsi}/position?filter.idType=mmsi`, {
       headers: { 'Authorization': `Bearer ${key}` }
     });
 
