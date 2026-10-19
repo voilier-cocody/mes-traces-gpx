@@ -21,6 +21,25 @@ async function getLatestPosition() {
     }
 
     const data = await response.json();
+    const p = data.vesselPosition || data;
+    
+    // --- CORRECTION DU TIMESTAMP ---
+    let rawTimestamp = p.timestamp || p.date || p.receivedAt;
+    let finalDate;
+
+    if (rawTimestamp) {
+      // Si c'est un nombre à 10 chiffres (secondes Unix), on le convertit en millisecondes
+      if (typeof rawTimestamp === "number" && rawTimestamp.toString().length === 10) {
+        rawTimestamp = rawTimestamp * 1000;
+      }
+      
+      const parsedDate = new Date(rawTimestamp);
+      // Sécurité si la date parsée reste invalide malgré tout
+      finalDate = isNaN(parsedDate.getTime()) ? new Date().toISOString() : parsedDate.toISOString();
+    } else {
+      finalDate = new Date().toISOString(); // Valeur de repli sur l'heure actuelle
+    }
+    // -------------------------------
     
     // Extraction des données selon la structure de l'API choisie
     const out = {
