@@ -8,20 +8,22 @@ if (!key || !mmsi) {
   process.exit(1);
 }
 
-// 1. On passe la clé directement dans l'URL pour une authentification immédiate
-const socket = new WebSocket(`wss://stream.aisstream.io/v0/stream?apiKey=${key}`);
+// Reconnexion à l'URL de base brute requise
+const socket = new WebSocket("wss://stream.aisstream.io/v0/stream");
 
 const timeout = setTimeout(() => {
-  console.error("Timeout : aucun message AIS reçu pour le MMSI " + mmsi);
+  console.error(`Timeout : aucun message AIS reçu pour le MMSI ${mmsi} après 4 minutes.`);
   socket.close();
-  process.exit(0); // Quitte proprement pour le workflow
+  process.exit(0); // Permet au workflow de se terminer sans marquer un échec rouge si le bateau dort
 }, 240000);
 
 socket.onopen = () => {
-  console.log(`Connexion établie. Recherche du MMSI : ${mmsi}...`);
-  // 2. On envoie l'abonnement sans avoir besoin de répéter l'APIKey ici
+  console.log(`Connexion établie avec AisStream. Envoi de l'abonnement pour le MMSI : ${mmsi}...`);
+  
+  // La clé d'API DOIT impérativement être passée dans le JSON ici
   socket.send(JSON.stringify({
-    BoundingBoxes: [[[-90, -180], [90, 180]]],
+    APIKey: key,
+    BoundingBoxes: [[[-90, -180], [90, 180]]], // Définition correcte des limites mondiales (Worldwide)
     FiltersShipMMSI: [String(mmsi)],
     FilterMessageTypes: ["PositionReport"],
   }));
@@ -32,11 +34,11 @@ socket.onmessage = async (ev) => {
     const raw = ev.data instanceof Blob ? await ev.data.text() : String(ev.data);
     const msg = JSON.parse(raw);
     
-    // AisStream renvoie parfois des messages de keep-alive ou de statut, on valide la structure
+    // Ignorer les messages de notification/statut internes d'AisStream
     const p = msg.Message?.PositionReport;
     if (!p) return;
 
-    console.log("Position reçue ! Enregistrement...");
+    console.log(`Position détectée pour le navire ! Écriture dans position.json...`);
     const out = {
       latitude: p.Latitude,
       longitude: p.Longitude,
@@ -46,22 +48,21 @@ socket.onmessage = async (ev) => {
       source: "ais",
     };
 
-    // Note : Votre YAML cherche "position.json", assurez-vous de nommer le fichier correctement ici
     fs.writeFileSync("position.json", JSON.stringify(out, null, 2));
     
     clearTimeout(timeout);
     socket.close();
     process.exit(0);
   } catch (err) {
-    console.error("Erreur lors du traitement du message :", err);
+    console.error("Erreur d'analyse du message reçu :", err);
   }
 };
 
 socket.onclose = (event) => {
-  console.log(`Le WebSocket a été fermé. Code: ${event.code}, Raison: ${event.reason || "Aucune"}`);
+  console.log(`Le WebSocket a été fermé. Code: ${event.code}, Raison: ${event.reason || "Aucune (Fermeture serveur brute)"}`);
 };
 
 socket.onerror = (e) => {
-  console.error("WebSocket Erreur : " + (e.message ?? "erreur inconnue"));
+  console.error("WebSocket Erreur : " + (e.message ?? "Erreur inconnue de flux"));
   process.exit(1);
 };
