@@ -21,7 +21,7 @@ jobs:
       - name: Récupérer la position AIS
         env:
           AISSTREAM_API_KEY: ${{ secrets.AISSTREAM_API_KEY }}
-          MMSI: "226242000"
+          MMSI: "227904590"
         run: node .github/scripts/ais.js
 
       - name: Commit si changement
