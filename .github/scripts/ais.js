@@ -48,10 +48,38 @@ async function getLatestPosition() {
       source: "AIS",
     };
 
-    fs.writeFileSync("position.json", JSON.stringify(out, null, 2));
-    console.log("Fichier position.json mis à jour avec succès !");
-    process.exit(0);
+ // --- NOUVELLE LOGIQUE DE COMPARAISON DES DATES ---
+    let shouldUpdate = true;
+    const newDateObj = new Date(out.date);
 
+    if (fs.existsSync(fileName)) {
+      try {
+        const fileContent = fs.readFileSync(fileName, 'utf-8');
+        const oldData = JSON.parse(fileContent);
+
+        if (oldData && oldData.date) {
+          const oldDateObj = new Date(oldData.date);
+
+          // Si la nouvelle date est plus ancienne ou identique, on n'écrit rien
+          if (newDateObj <= oldDateObj) {
+            console.log(`Pas de mise à jour nécessaire. Date API (${out.date}) antérieure ou égale à la date enregistrée (${oldData.date}).`);
+            shouldUpdate = false;
+          }
+        }
+      } catch (parseError) {
+        console.warn("Attention : Impossible de lire ou parser l'ancien JSON. Le fichier sera écrasé.", parseError.message);
+      }
+    }
+
+    // Écriture uniquement si la donnée est strictement plus récente
+    if (shouldUpdate) {
+      fs.writeFileSync(fileName, JSON.stringify(out, null, 2));
+      console.log("Fichier position.json mis à jour avec succès !");
+    }
+    // -------------------------------------------------
+
+    process.exit(0);
+    
   } catch (error) {
     console.error("Impossible de récupérer la position :", error.message);
     process.exit(1);
