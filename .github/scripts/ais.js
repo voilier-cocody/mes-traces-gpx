@@ -2,6 +2,7 @@ const fs = require("fs");
 
 const key = process.env.VESSELAPI_KEY; // Remplacez par votre clé VesselAPI si nécessaire https://dashboard.vesselapi.com/
 const mmsi = process.env.MMSI;
+const fileName = "position.json";
 
 if (!key || !mmsi) {
   console.error("Erreur : Variables manquantes.");
