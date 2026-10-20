@@ -1,8 +1,9 @@
 const fs = require("fs");
+const path = require("path"); // 1. Ajoutez l'import du module path
 
 const key = process.env.VESSELAPI_KEY; // Remplacez par votre clé VesselAPI si nécessaire https://dashboard.vesselapi.com/
 const mmsi = process.env.MMSI;
-const fileName = "position.json";
+const fileName = path.join(__dirname, "../../position.json"); 
 
 if (!key || !mmsi) {
   console.error("Erreur : Variables manquantes.");
