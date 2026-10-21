@@ -21,7 +21,7 @@ jobs:
       - name: Récupérer la position AIS
         env:
           VESSELAPI_KEY: ${{ secrets.VESSELAPI_KEY }}
-          MMSI: "227904590"
+          MMSI: "227620210"
         run: node .github/scripts/ais.js
 
       - name: Commit si changement
