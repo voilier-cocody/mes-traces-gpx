@@ -1,0 +1,218 @@
+/* ==========================================================================
+   Carte du voilier — styles
+   Dépôt : voilier-cocody/mes-traces-gpx  (dossier carte/)
+   ========================================================================== */
+
+  /* --- DESIGN ÉPURÉ DU PANNEAU DE CALQUES --- */
+  .leaflet-control-layers {
+    border: none !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15) !important;
+    border-radius: 8px !important;
+    font-family: sans-serif;
+    background-color: rgba(255, 255, 255, 0.98) !important;
+    padding: 8px 10px !important;
+  }
+
+  .leaflet-touch .leaflet-control-layers-toggle {
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  .leaflet-control-layers-toggle {
+    background-size: 18px 18px !important;
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  .leaflet-control-layers-separator {
+    border-top: 1px solid #eee !important;
+    margin: 8px -10px !important;
+  }
+
+  /* --- CONTRÔLES DE LA POP-UP LISEUSE --- */
+  .popup-liseuse-gpx .leaflet-popup-content-wrapper {
+    display: inline-flex !important;
+    flex-direction: column;
+    max-width: 90vw !important;
+  }
+  .popup-liseuse-gpx .leaflet-popup-content {
+    width: auto !important;
+    display: flex;
+    flex-direction: column;
+  }
+  .zone-lecture-popup::-webkit-resizer {
+    background-color: #3498db;
+    border-radius: 4px;
+    outline: 2px solid white;
+  }
+  .zone-lecture-popup img {
+    max-width: 100% !important;
+    height: auto !important;
+    display: block;
+    margin: 12px auto;
+    border-radius: 4px;
+  }
+  .zone-lecture-popup table, .zone-lecture-popup .separator {
+    width: 100% !important;
+  }
+
+  /* --- MASQUAGE DES LIENS DE NAVIGATION BLOGGER --- */
+  .zone-lecture-popup .blog-pager-older-link,
+  .zone-lecture-popup .blog-pager-newer-link,
+  .zone-lecture-popup .blog-pager,
+  .zone-lecture-popup .blog-pager-newer-wrapper,
+  .zone-lecture-popup #blog-pager,
+  .zone-lecture-popup .home-link,
+  .zone-lecture-popup #blog-pager-older-link,
+  .zone-lecture-popup #blog-pager-newer-link {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    opacity: 0 !important;
+  }
+
+  /* --- MODE ÉCRAN PARTAGÉ (SPLIT) --- */
+  .panneau-lecture-split {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 50%;
+    height: 100%;
+    background: #fff;
+    z-index: 100001; /* au-dessus de la carte en plein écran */
+    overflow-y: auto;
+    overflow-x: hidden; /* les tirets de la barre (left:100%) dépassent de 2px */
+    font-family: sans-serif;
+    box-shadow: -4px 0 15px rgba(0, 0, 0, 0.3);
+  }
+  .panneau-lecture-split img {
+    max-width: 100% !important;
+    height: auto !important;
+    display: block;
+    margin: 12px auto;
+    border-radius: 4px;
+  }
+  .panneau-lecture-split .blog-pager-older-link,
+  .panneau-lecture-split .blog-pager-newer-link,
+  .panneau-lecture-split .blog-pager,
+  .panneau-lecture-split .blog-pager-newer-wrapper,
+  .panneau-lecture-split #blog-pager,
+  .panneau-lecture-split .home-link,
+  .panneau-lecture-split #blog-pager-older-link,
+  .panneau-lecture-split #blog-pager-newer-link {
+    display: none !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    opacity: 0 !important;
+  }
+
+  /* --- INDICATEUR DE LECTURE (mode split) : zone radar "par ici" --- */
+  .radar-lecture { background: none; border: none; }
+  .radar-lecture .radar-anneaux {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    pointer-events: none;
+  }
+  .radar-lecture .radar-anneaux::before,
+  .radar-lecture .radar-anneaux::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 3px solid rgba(230, 126, 34, 0.95); /* orange vif : lisible sur mer et terre */
+    animation: radarOnde 1.8s ease-out infinite;
+  }
+  .radar-lecture .radar-anneaux::after {
+    animation-delay: 0.9s; /* deuxième onde décalée pour un effet radar */
+  }
+  @keyframes radarOnde {
+    0%   { transform: scale(0.15); opacity: 1; }
+    70%  { opacity: 0.5; }  /* fondu progressif au lieu d'une disparition brutale */
+    100% { transform: scale(1);    opacity: 0; }
+  }
+
+  /* --- LIGNE DE LECTURE (mode split) : seuil visible de changement de date --- */
+  .split-entete { position: sticky; top: 0; z-index: 2; }
+  .split-entete .ligne-lecture {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -2px;
+    height: 0;
+    pointer-events: none;
+  }
+  /* Seul le petit triangle reste visible, pointe vers la droite,
+     à gauche du texte, au niveau du seuil de lecture */
+  .split-entete .ligne-lecture::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: -7px;
+    width: 0;
+    height: 0;
+    border-top: 7px solid transparent;
+    border-bottom: 7px solid transparent;
+    border-left: 9px solid rgba(52, 152, 219, 0.95);
+  }
+
+  /* --- BARRE DE PROGRESSION CHRONOLOGIQUE (mode split) --- */
+  .barre-progression-lecture {
+    position: sticky;
+    bottom: 0;
+    height: 14px;
+    background: rgba(44, 62, 80, 0.12);
+    border-top: 1px solid rgba(44, 62, 80, 0.15);
+    cursor: pointer;
+    z-index: 3;
+  }
+  .barre-progression-lecture .bp-remplissage {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0;
+    background: rgba(52, 152, 219, 0.45);
+    transition: width 0.15s linear;
+  }
+  .barre-progression-lecture .bp-reperes {
+    position: absolute;
+    inset: 0;
+  }
+  .barre-progression-lecture .bp-marqueur {
+    position: absolute;
+    top: 2px;
+    width: 4px;
+    height: 10px;
+    margin-left: -2px;
+    background: #2c3e50;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .barre-progression-lecture .bp-marqueur:hover {
+    background: #e74c3c;
+  }
+
+  /* --- ONDE RADAR DU MARQUEUR DU VOILIER --- */
+  .custom-svg-icon { background: none; border: none; }
+  .custom-svg-icon .pulse {
+    position: absolute;
+    left: 50%;
+    bottom: -6px;
+    width: 26px;
+    height: 26px;
+    margin-left: -13px;
+    border-radius: 50%;
+    box-sizing: border-box;
+    pointer-events: none;
+    border: 3px solid #ff4d4d;
+    box-shadow: 0 0 6px rgba(255, 77, 77, 0.9);
+    animation: pulse 1.5s ease-out infinite;
+  }
+  @keyframes pulse {
+    0%   { transform: scale(0.4); opacity: 1; }
+    100% { transform: scale(2.8); opacity: 0; }
+  }
