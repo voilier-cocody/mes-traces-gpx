@@ -339,7 +339,7 @@
                              '<div class="entete-lecture" style="background: #f8f9fa; padding: 10px; margin: -14px -14px 10px -14px; border-radius: 4px 4px 0 0; border-bottom: 1px solid #eee; user-select: none; cursor: move; display: flex; align-items: center;">' +
                              '<div style="flex: 1;">' +
                              '<h3 style="margin: 4px 0 2px 0; color: #2c3e50; font-size: 16px; font-weight: bold;">' + articleCorrespondant.titre + '</h3>' +
-                             '<span style="font-size: 12px; color: #95a5a6;">📍 Nous étions içi le : ' + dateTexte + '</span>' +
+                             '<span class="popup-date" style="font-size: 12px; color: #95a5a6;">📍 Nous étions içi le : ' + dateTexte + '</span>' +
                              '</div>' +
                              boutonSplit +
                              '</div>' +
@@ -380,6 +380,8 @@
                   popupLecteur._deplace = false;
                   popupLecteur._dx = 0;
                   popupLecteur._dy = 0;
+                  // Le radar disparaît avec le popup, sauf si on passe en mode split
+                  if (!splitActif) supprimerRadar();
                 });
               }
 
@@ -410,6 +412,7 @@
                 popupLecteur._titreArticle = articleCorrespondant.titre;
                 popupLecteur._dateArticle = dateProche;
                 popupLecteur._dateTexteArticle = dateTexte;
+                popupLecteur._anneeRef = dateProche ? dateProche.getFullYear() : new Date().getFullYear();
 
                 if (!deplaceManuellement) {
                   popupLecteur.setLatLng(evt.latlng);
@@ -429,6 +432,9 @@
 
                 // Popup déplaçable à la souris ou au doigt (via son en-tête)
                 rendrePopupDeplacable(popupLecteur);
+
+                // Radar : suit aussi la lecture dans le popup
+                brancherRadarPopup(popupLecteur);
               }
 
             } else {
@@ -699,6 +705,9 @@
               }
             }
           }
+          // Le radar se cale sur la date atteinte une fois l'article en place,
+          // même si le défilement n'a pas bougé (popup ou panneau)
+          setTimeout(majIndicateurLecture, 500);
         } else if (cible) {
           cible.innerHTML = "<i>Le texte de l'article n'a pas pu être isolé automatiquement.</i>";
         }
@@ -809,17 +818,7 @@
       conteneurCarte.style.width = '50%';
       carte.invalidateSize();
 
-      // Indicateur de lecture : zone radar floue ("grosso modo par ici") qui
-      // recouvre la zone de navigation du paragraphe lu, sans fausse précision
-      indicateurLecture = L.marker([0, 0], {
-        interactive: false,
-        icon: L.divIcon({
-          className: 'radar-lecture',
-          html: '<div class="radar-anneaux"></div>',
-          iconSize: [200, 200],
-          iconAnchor: [100, 100]
-        })
-      }).addTo(carte);
+      creerRadar();
 
       // Création du panneau latéral droit
       panneauLecture = document.createElement('div');
@@ -908,14 +907,7 @@
       splitActif = false;
       conteneurCarte.style.width = '';
       carte.invalidateSize();
-      if (animationRadar) {
-        cancelAnimationFrame(animationRadar);
-        animationRadar = null;
-      }
-      if (indicateurLecture) {
-        carte.removeLayer(indicateurLecture);
-        indicateurLecture = null;
-      }
+      supprimerRadar();
       if (panneauLecture && panneauLecture.parentNode) {
         panneauLecture.parentNode.removeChild(panneauLecture);
       }
@@ -949,12 +941,10 @@
 
 
   // --- INDICATEUR DE LECTURE ---
-  // Recherche les repères datés (ancres data-date ou dates du texte) du panneau.
-  // Les images comptent si elles portent un attribut data-date (photo du jour).
-  function construireReperesPanneau() {
-    if (!panneauLecture) return [];
-    var zone = panneauLecture.querySelector('.zone-lecture-split');
-    if (!zone) return [];
+  // Repères datés d'une zone de texte (panneau split OU popup) : ancres
+  // data-date ou dates écrites dans le texte. Les images comptent si elles
+  // portent un attribut data-date (photo du jour).
+  function construireReperes(zone, anneeRef) {
     var blocs = collecterElementsTexte(zone);
     var reperes = [];
     for (var i = 0; i < blocs.length; i++) {
@@ -969,12 +959,101 @@
         // pour éviter les faux positifs (alt, filigranes, captures d'écran...)
         // Année de référence = année du point cliqué (les dates du texte sans
         // année sont celles de la saison naviguée, pas de l'année en cours)
-        var anneeRef = panneauLecture._anneeRef || new Date().getFullYear();
-        d = parserDateDansTexte(el.textContent || '', anneeRef);
+        d = parserDateDansTexte(el.textContent || '', anneeRef || new Date().getFullYear());
       }
       if (d) reperes.push({ el: el, date: d });
     }
     return reperes;
+  }
+
+  // Version panneau split (utilisée par la barre de progression)
+  function construireReperesPanneau() {
+    if (!panneauLecture) return [];
+    var zone = panneauLecture.querySelector('.zone-lecture-split');
+    return zone ? construireReperes(zone, panneauLecture._anneeRef) : [];
+  }
+
+  // Ce dont le radar a besoin pour suivre la lecture : l'élément qui défile,
+  // la zone de texte, la ligne de lecture et l'étiquette de date.
+  // null si aucune lecture n'est en cours.
+  function contexteLecture() {
+    if (splitActif && panneauLecture) {
+      var zone = panneauLecture.querySelector('.zone-lecture-split');
+      if (!zone) return null;
+      var entete = panneauLecture.querySelector('.split-entete');
+      var rectPanneau = panneauLecture.getBoundingClientRect();
+      return {
+        defilant: panneauLecture,
+        zone: zone,
+        ligneY: entete
+          ? entete.getBoundingClientRect().bottom - rectPanneau.top + decalageLigneLecturePx()
+          : 60,
+        etiquette: panneauLecture.querySelector('.split-date'),
+        anneeRef: panneauLecture._anneeRef
+      };
+    }
+    if (popupLecteur && carte.hasLayer(popupLecteur)) {
+      var el = popupLecteur.getElement();
+      var zonePopup = el && el.querySelector('.zone-lecture-popup');
+      if (!zonePopup) return null;
+      var pct = Math.max(0, Math.min(80, POURCENTAGE_LIGNE_LECTURE)) / 100;
+      return {
+        defilant: zonePopup,
+        zone: zonePopup,
+        ligneY: pct * zonePopup.clientHeight,
+        etiquette: el.querySelector('.popup-date'),
+        anneeRef: popupLecteur._anneeRef
+      };
+    }
+    return null;
+  }
+
+  // Création / suppression du radar (idempotentes : le radar peut passer du
+  // popup au mode split sans être recréé)
+  function creerRadar() {
+    if (indicateurLecture || !carte) return;
+    // Indicateur de lecture : zone radar floue ("grosso modo par ici") qui
+    // recouvre la zone de navigation du paragraphe lu, sans fausse précision
+    indicateurLecture = L.marker([0, 0], {
+      interactive: false,
+      icon: L.divIcon({
+        className: 'radar-lecture',
+        html: '<div class="radar-anneaux"></div>',
+        iconSize: [200, 200],
+        iconAnchor: [100, 100]
+      })
+    }).addTo(carte);
+  }
+
+  function supprimerRadar() {
+    if (animationRadar) {
+      cancelAnimationFrame(animationRadar);
+      animationRadar = null;
+    }
+    if (indicateurLecture) {
+      carte.removeLayer(indicateurLecture);
+      indicateurLecture = null;
+    }
+  }
+
+  // Branche le radar sur le popup de lecture : écoute le défilement de sa zone
+  function brancherRadarPopup(popup) {
+    creerRadar();
+    var el = popup.getElement();
+    if (!el || el.getAttribute('data-radar')) return;
+    el.setAttribute('data-radar', '1');
+    var dernier = 0, minuterie = null;
+    // 'scroll' ne remonte pas dans le DOM : on l'écoute en phase de capture
+    el.addEventListener('scroll', function(e) {
+      if (!e.target.classList || !e.target.classList.contains('zone-lecture-popup')) return;
+      var maintenant = new Date().getTime();
+      if (maintenant - dernier >= 200) {
+        dernier = maintenant;
+        majIndicateurLecture();
+      }
+      clearTimeout(minuterie);
+      minuterie = setTimeout(function() { dernier = 0; majIndicateurLecture(); }, 220);
+    }, true);
   }
 
   // --- LARGEUR DE CARTE RÉELLEMENT VISIBLE ---
@@ -993,6 +1072,7 @@
   // --- LA CARTE SUIT LE RADAR ---
   function suivreRadar(cible) {
     if (!carte || carteEnInteraction) return;
+    if (!splitActif) return; // en mode popup, la carte ne bouge pas (le popup partirait avec elle)
 
     var taille = carte.getSize();
     var largeurVisible = largeurVisibleCarte();
@@ -1061,32 +1141,27 @@
   }
 
   // Déplace l'indicateur sur le point de trace correspondant au paragraphe lu
+  // (panneau split OU popup de lecture)
   function majIndicateurLecture() {
-    if (!splitActif || !indicateurLecture || !panneauLecture) return;
-    var reperes = construireReperesPanneau();
+    var ctx = contexteLecture();
+    if (!ctx || !indicateurLecture) return;
+    var reperes = construireReperes(ctx.zone, ctx.anneeRef);
     if (reperes.length === 0) return;
 
     // Position de l'ascenseur : les extrêmes imposent première/dernière date
-    var maxScroll = panneauLecture.scrollHeight - panneauLecture.clientHeight;
-    if (maxScroll < 0) maxScroll = 0; // article plus court que le panneau
-    var enHaut = panneauLecture.scrollTop <= 40;
-    var enBas = panneauLecture.scrollTop >= maxScroll - 40;
-
-    var panneauRect = panneauLecture.getBoundingClientRect();
-    // La ligne de lecture est le bord inférieur de l'en-tête (visible,
-    // en pointillés bleus) décalé du pourcentage choisi
-    var entete = panneauLecture.querySelector('.split-entete');
-    var enteteRect = entete ? entete.getBoundingClientRect() : null;
-    var ligneY = enteteRect
-      ? enteteRect.bottom - panneauRect.top + decalageLigneLecturePx()
-      : 60;
+    var defilant = ctx.defilant;
+    var maxScroll = defilant.scrollHeight - defilant.clientHeight;
+    if (maxScroll < 0) maxScroll = 0; // article plus court que la zone
+    var enHaut = defilant.scrollTop <= 40;
+    var enBas = defilant.scrollTop >= maxScroll - 40;
 
     // Pour chaque repère : position d'ascenseur à laquelle il franchit la ligne
+    var rectDefilant = defilant.getBoundingClientRect();
     var scrollFranchissement = [];
     for (var i = 0; i < reperes.length; i++) {
-      var absRep = reperes[i].el.getBoundingClientRect().top - panneauRect.top +
-                   panneauLecture.scrollTop;
-      scrollFranchissement.push(absRep - ligneY);
+      var absRep = reperes[i].el.getBoundingClientRect().top - rectDefilant.top +
+                   defilant.scrollTop;
+      scrollFranchissement.push(absRep - ctx.ligneY);
     }
 
     // Repère le plus avancé qui a franchi la ligne, et le plus avancé
@@ -1094,7 +1169,7 @@
     var dernierFranchi = 0;
     var dernierAtteignable = 0;
     for (var j = 0; j < reperes.length; j++) {
-      if (scrollFranchissement[j] <= panneauLecture.scrollTop) dernierFranchi = j;
+      if (scrollFranchissement[j] <= defilant.scrollTop) dernierFranchi = j;
       if (scrollFranchissement[j] <= maxScroll) dernierAtteignable = j;
     }
 
@@ -1116,7 +1191,7 @@
         for (var r = 0; r < restants; r++) {
           // seuil du (r+1)-ième repère non atteignable par la ligne
           var seuil = depart + course * (r + 1) / (restants + 1);
-          if (panneauLecture.scrollTop >= seuil) {
+          if (defilant.scrollTop >= seuil) {
             indexDate = dernierAtteignable + 1 + r;
           }
         }
@@ -1125,14 +1200,13 @@
 
     var dateCourante = reperes[indexDate].date;
 
-    // L'en-tête du panneau suit la lecture : il affiche la même date
-    // que celle que suit le radar (niveau jour, sans horaire)
-    var etiquetteDate = panneauLecture.querySelector('.split-date');
-    if (etiquetteDate) {
+    // L'étiquette de date (en-tête du panneau OU du popup) suit la lecture :
+    // elle affiche la même date que celle que suit le radar (niveau jour)
+    if (ctx.etiquette) {
       var nouveauTexte = '📍 Nous étions içi le : ' +
         dateCourante.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-      if (etiquetteDate.textContent !== nouveauTexte) {
-        etiquetteDate.textContent = nouveauTexte;
+      if (ctx.etiquette.textContent !== nouveauTexte) {
+        ctx.etiquette.textContent = nouveauTexte;
       }
     }
 
@@ -1143,8 +1217,8 @@
     dateReference.setHours(12, 0, 0, 0);
 
     var meilleur = null, meilleurEcart = Infinity;
-    for (var j = 0; j < registrePoints.length; j++) {
-      var pt = registrePoints[j];
+    for (var m = 0; m < registrePoints.length; m++) {
+      var pt = registrePoints[m];
       if (!carte.hasLayer(gpxLayers[pt.saison])) continue;
       var ecart = Math.abs(pt.date.getTime() - dateReference.getTime());
       if (ecart < meilleurEcart) { meilleurEcart = ecart; meilleur = pt; }
