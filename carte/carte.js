@@ -648,6 +648,17 @@
   // ne retélécharge rien (ni HTML ni images), plus de "saut" à l'écran
   var cacheArticles = {};
 
+  // Remonte l'ancêtre de el qui possède un ascenseur (overflow auto/scroll)
+  function conteneurDefilant(el) {
+    var n = el;
+    while (n && n !== document.body) {
+      var st = window.getComputedStyle(n).overflowY;
+      if (st === 'auto' || st === 'scroll') return n;
+      n = n.parentElement;
+    }
+    return null;
+  }
+
   // Fonction automatique : charge l'article, isole le texte, puis se positionne
   // sur le paragraphe correspondant à la date du point de trace cliqué
   function extraireTexteArticleBlogger(urlArticle, idElementA_Remplir, dateCible) {
@@ -697,10 +708,25 @@
               defilerVers(cibleScroll, false);
 
               // Recalage : quand une image se charge, la mise en page bouge ;
-              // on repositionne le défilement (immédiat, sans animation)
+              // on repositionne le défilement (immédiat, sans animation).
+              // MAIS dès que le lecteur scrolle lui-même (souris, doigt,
+              // clavier), le recalage s'arrête : sinon chaque image en lazy
+              // loading ramenait la vue au paragraphe d'origine pendant
+              // que l'on descendait dans l'article.
+              var recalageActif = true;
+              var zoneDefilement = conteneurDefilant(cible) || cible;
+              ['wheel', 'touchstart', 'keydown'].forEach(function(evenement) {
+                zoneDefilement.addEventListener(evenement, function(ev) {
+                  if (evenement === 'keydown' &&
+                      ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].indexOf(ev.key) === -1) {
+                    return;
+                  }
+                  recalageActif = false;
+                });
+              });
               for (var y = 0; y < images.length; y++) {
                 images[y].addEventListener('load', function() {
-                  defilerVers(cibleScroll, true);
+                  if (recalageActif) defilerVers(cibleScroll, true);
                 });
               }
             }
