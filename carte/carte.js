@@ -889,9 +889,8 @@
       var hotePanneau = document.fullscreenElement || conteneurCarte;
       hotePanneau.appendChild(panneauLecture);
 
-      // Position de la ligne de lecture pilotée par la constante unique
-      var ligneVisuelle = panneauLecture.querySelector('.ligne-lecture');
-      if (ligneVisuelle) ligneVisuelle.style.bottom = (-decalageLigneLecturePx()) + 'px';
+      // Position initiale du triangle de lecture : ligne dynamique à scrollTop 0
+      majLigneVisuelle();
 
       // Sortie du mode split : le bouton rouge du panneau
       panneauLecture.querySelector('.btn-split-exit').addEventListener('click', function() {
@@ -915,6 +914,7 @@
       // peut être avalé par le frein, et la première/dernière date ratée.
       var dernierCalcul = 0;
       panneauLecture.addEventListener('scroll', function() {
+        majLigneVisuelle(); // le triangle suit chaque évènement : très léger
         var maintenant = new Date().getTime();
         if (maintenant - dernierCalcul >= 200) {
           dernierCalcul = maintenant;
@@ -1251,6 +1251,24 @@
       }
     }
     return haut;
+  }
+
+  // Le triangle bleu (seuil de lecture visible dans l'en-tête du panneau
+  // split) suit la ligne dynamique : il part du haut du panneau, descend
+  // jusqu'à sa position habituelle pendant le premier quart de course, puis
+  // glisse jusqu'en bas sur le dernier quart — le même balayage que le radar.
+  function majLigneVisuelle() {
+    if (!panneauLecture) return;
+    var ligneVisuelle = panneauLecture.querySelector('.ligne-lecture');
+    var entete = panneauLecture.querySelector('.split-entete');
+    if (!ligneVisuelle || !entete) return;
+    var rectPanneau = panneauLecture.getBoundingClientRect();
+    var basEntete = entete.getBoundingClientRect().bottom - rectPanneau.top;
+    var maxScroll = panneauLecture.scrollHeight - panneauLecture.clientHeight;
+    if (maxScroll < 0) maxScroll = 0;
+    var y = positionLigneLecture(panneauLecture, maxScroll,
+                                basEntete + decalageLigneLecturePx());
+    ligneVisuelle.style.bottom = (basEntete - y) + 'px';
   }
 
   // Déplace l'indicateur sur le point de trace correspondant au paragraphe lu
