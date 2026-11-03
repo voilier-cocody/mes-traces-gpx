@@ -867,6 +867,7 @@
       // Création du panneau latéral droit
       panneauLecture = document.createElement('div');
       panneauLecture.className = 'panneau-lecture-split';
+      adoucirRoulette(panneauLecture);
       panneauLecture.innerHTML =
         '<div class="split-entete" style="display:flex; align-items:center; justify-content:space-between; background:#2c3e50; color:#fff; padding:12px 16px; position:sticky; top:0; z-index:2; position:sticky;">' +
         '<div style="flex:1; margin-right:10px;">' +
@@ -1084,12 +1085,38 @@
     }
   }
 
+  // Molette plus douce dans les zones de lecture : un cran de roulette
+  // défile par défaut ~100 px et peut franchir plusieurs repères de dates
+  // rapprochés d'un coup. On borne chaque cran à PAS_ROULETTE px.
+  // selecteurZone : si fourni (mode popup), la molette n'est traitée que
+  // lorsque le curseur est au-dessus de la zone de lecture ; sinon (mode
+  // split) c'est la zone elle-même qui défile.
+  var PAS_ROULETTE = 50;
+  function adoucirRoulette(zone, selecteurZone) {
+    if (!zone) return;
+    zone.addEventListener('wheel', function(e) {
+      if (e.ctrlKey) return; // zoom du navigateur : on n'y touche pas
+      var conteneur = zone;
+      if (selecteurZone) {
+        conteneur = e.target.closest && e.target.closest(selecteurZone);
+        if (!conteneur) return;
+      }
+      if (conteneur.scrollHeight <= conteneur.clientHeight) return;
+      e.preventDefault();
+      var delta = e.deltaY * (e.deltaMode === 1 ? 16 : 1);
+      if (delta > PAS_ROULETTE) delta = PAS_ROULETTE;
+      if (delta < -PAS_ROULETTE) delta = -PAS_ROULETTE;
+      conteneur.scrollTop += delta;
+    }, { passive: false });
+  }
+
   // Branche le radar sur le popup de lecture : écoute le défilement de sa zone
   function brancherRadarPopup(popup) {
     creerRadar();
     var el = popup.getElement();
     if (!el || el.getAttribute('data-radar')) return;
     el.setAttribute('data-radar', '1');
+    adoucirRoulette(el, '.zone-lecture-popup');
     var dernier = 0, minuterie = null;
     // 'scroll' ne remonte pas dans le DOM : on l'écoute en phase de capture
     el.addEventListener('scroll', function(e) {
