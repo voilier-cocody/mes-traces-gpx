@@ -757,6 +757,25 @@
     return selection;
   }
 
+  // Analyse d'un attribut data-date : "2026-10-23" ou "2026-10-23T15:00"
+  // Retourne la Date correspondante et si l'heure était précisée.
+  function parserAttributDate(valeur) {
+    if (!valeur) return null;
+    var parties = valeur.split('T');
+    var morceauxDate = parties[0].split('-');
+    var annee = parseInt(morceauxDate[0], 10);
+    var mois = parseInt(morceauxDate[1], 10) - 1;
+    var jour = parseInt(morceauxDate[2], 10);
+    if (isNaN(annee) || isNaN(mois) || isNaN(jour)) return null;
+    var heure = 0, minute = 0;
+    if (parties[1]) {
+      var morceauxHeure = parties[1].split(':');
+      heure = parseInt(morceauxHeure[0], 10) || 0;
+      minute = parseInt(morceauxHeure[1], 10) || 0;
+    }
+    return { date: new Date(annee, mois, jour, heure, minute), avecHeure: !!parties[1] };
+  }
+
   // Trouve le paragraphe cible correspondant à la date cliquée et retourne l'élément
   // (ou null si aucun repère n'est trouvé : le lecteur reste alors en haut)
   function localiserParagrapheParDate(conteneur, dateCible) {
@@ -772,9 +791,8 @@
       var el = paragraphes[i];
       var a = el.getAttribute && el.getAttribute('data-date');
       if (a) {
-        var parties = a.split('-');
-        var dateAncre = new Date(parseInt(parties[0], 10), parseInt(parties[1], 10) - 1, parseInt(parties[2], 10));
-        candidats.push({ el: el, date: dateAncre, exact: true });
+        var ancre = parserAttributDate(a);
+        if (ancre) candidats.push({ el: el, date: ancre.date, exact: true });
         continue; // l'ancre prime sur toute date écrite dans le texte de ce même élément
       }
       var dateTxt = parserDateDansTexte(el.textContent || '', dateCible.getFullYear());
@@ -950,10 +968,14 @@
     for (var i = 0; i < blocs.length; i++) {
       var el = blocs[i];
       var d = null;
+      var avecHeure = false;
       var a = el.getAttribute && el.getAttribute('data-date');
       if (a) {
-        var parties = a.split('-');
-        d = new Date(parseInt(parties[0], 10), parseInt(parties[1], 10) - 1, parseInt(parties[2], 10));
+        var attribut = parserAttributDate(a);
+        if (attribut) {
+          d = attribut.date;
+          avecHeure = attribut.avecHeure;
+        }
       } else if (el.tagName !== 'IMG') {
         // Pas de scan de texte dans les images : uniquement l'attribut data-date,
         // pour éviter les faux positifs (alt, filigranes, captures d'écran...)
@@ -961,7 +983,7 @@
         // année sont celles de la saison naviguée, pas de l'année en cours)
         d = parserDateDansTexte(el.textContent || '', anneeRef || new Date().getFullYear());
       }
-      if (d) reperes.push({ el: el, date: d });
+      if (d) reperes.push({ el: el, date: d, avecHeure: avecHeure });
     }
     return reperes;
   }
@@ -1201,20 +1223,26 @@
     var dateCourante = reperes[indexDate].date;
 
     // L'étiquette de date (en-tête du panneau OU du popup) suit la lecture :
-    // elle affiche la même date que celle que suit le radar (niveau jour)
+    // elle affiche la même date que celle que suit le radar (+ l'heure si le
+    // repère data-date en porte une)
     if (ctx.etiquette) {
-      var nouveauTexte = '📍 Nous étions içi le : ' +
-        dateCourante.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+      var libelleDate = dateCourante.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+      if (reperes[indexDate].avecHeure) {
+        libelleDate += ' à ' + dateCourante.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      }
+      var nouveauTexte = '📍 Nous étions içi le : ' + libelleDate;
       if (ctx.etiquette.textContent !== nouveauTexte) {
         ctx.etiquette.textContent = nouveauTexte;
       }
     }
 
     // Point GPX le plus proche dans le temps, parmi les traces VISIBLES.
-    // Les repères d'article sont des jours (pas des heures) : on vise midi
-    // ce jour-là, pour tomber au cœur de la navigation plutôt qu'à 0h00
+    // Les repères d'article sans heure sont des jours : on vise midi
+    // ce jour-là, pour tomber au cœur de la navigation plutôt qu'à 0h00.
+    // Les repères data-date avec heure (ex: 2026-10-23T15:00) sont utilisés
+    // tels quels : le radar suit l'horodatage exact.
     var dateReference = new Date(dateCourante.getTime());
-    dateReference.setHours(12, 0, 0, 0);
+    if (!reperes[indexDate].avecHeure) dateReference.setHours(12, 0, 0, 0);
 
     var meilleur = null, meilleurEcart = Infinity;
     for (var m = 0; m < registrePoints.length; m++) {
