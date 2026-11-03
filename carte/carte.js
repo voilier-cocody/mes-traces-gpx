@@ -1034,7 +1034,7 @@
       return {
         defilant: panneauLecture,
         zone: zone,
-        ligneY: entete
+        ligneFixeY: entete
           ? entete.getBoundingClientRect().bottom - rectPanneau.top + decalageLigneLecturePx()
           : 60,
         etiquette: panneauLecture.querySelector('.split-date'),
@@ -1049,7 +1049,7 @@
       return {
         defilant: zonePopup,
         zone: zonePopup,
-        ligneY: pct * zonePopup.clientHeight,
+        ligneFixeY: pct * zonePopup.clientHeight,
         etiquette: el.querySelector('.popup-date'),
         anneeRef: popupLecteur._anneeRef
       };
@@ -1215,6 +1215,44 @@
     animationRadar = requestAnimationFrame(pas);
   }
 
+  // Position de la ligne de lecture à un instant du défilement. Avec une
+  // ligne FIXE, les repères tout en haut et tout en bas de l'article ne
+  // peuvent jamais la franchir. La ligne "balaie" donc l'article : elle
+  // part du haut, atteint sa position habituelle (ligneFixeY) pendant la
+  // première fraction de la course d'ascenseur, s'y maintient pendant le
+  // cœur du défilement, puis redescend jusqu'en bas sur la dernière
+  // fraction. Tous les paragraphes sont ainsi franchis.
+  // POURCENTAGE_BALAYAGE : part de la course d'ascenseur réservée à chaque
+  // extrémité (montée puis descente de la ligne). Une seule valeur à ajuster.
+  var POURCENTAGE_BALAYAGE = 25;
+  function positionLigneLecture(defilant, maxScroll, ligneFixeY, s) {
+    if (maxScroll <= 0) return ligneFixeY;
+    if (typeof s !== 'number') s = defilant.scrollTop;
+    var marge = maxScroll * Math.max(0, Math.min(40, POURCENTAGE_BALAYAGE)) / 100;
+    if (s <= marge) return ligneFixeY * (s / marge);
+    if (s >= maxScroll - marge) {
+      return ligneFixeY + (defilant.clientHeight - ligneFixeY) *
+             ((s - (maxScroll - marge)) / marge);
+    }
+    return ligneFixeY;
+  }
+
+  // Position d'ascenseur à laquelle un repère (offset absolu absRep dans le
+  // contenu défilable) franchit la ligne dynamique : résolution par
+  // dichotomie, car la ligne bouge avec l'ascenseur (absRep - ligne(s) = s).
+  function scrollFranchissementRepere(defilant, maxScroll, ligneFixeY, absRep) {
+    var bas = 0, haut = maxScroll;
+    while (haut - bas > 1) {
+      var milieu = (bas + haut) / 2;
+      if (absRep - positionLigneLecture(defilant, maxScroll, ligneFixeY, milieu) <= milieu) {
+        haut = milieu;
+      } else {
+        bas = milieu;
+      }
+    }
+    return haut;
+  }
+
   // Déplace l'indicateur sur le point de trace correspondant au paragraphe lu
   // (panneau split OU popup de lecture)
   function majIndicateurLecture() {
@@ -1230,22 +1268,16 @@
     var enHaut = defilant.scrollTop <= 40;
     var enBas = defilant.scrollTop >= maxScroll - 40;
 
-    // Pour chaque repère : position d'ascenseur à laquelle il franchit la ligne
+    // Pour chaque repère : a-t-il franchi la ligne dynamique ? La ligne
+    // balaye le haut puis le bas de l'article : tout repère est atteignable,
+    // plus besoin de répartition artificielle sur la fin de course.
     var rectDefilant = defilant.getBoundingClientRect();
-    var scrollFranchissement = [];
+    var ligneY = positionLigneLecture(defilant, maxScroll, ctx.ligneFixeY);
+    var dernierFranchi = 0;
     for (var i = 0; i < reperes.length; i++) {
       var absRep = reperes[i].el.getBoundingClientRect().top - rectDefilant.top +
                    defilant.scrollTop;
-      scrollFranchissement.push(absRep - ctx.ligneY);
-    }
-
-    // Repère le plus avancé qui a franchi la ligne, et le plus avancé
-    // qui POURRA la franchir avant le fond d'ascenseur
-    var dernierFranchi = 0;
-    var dernierAtteignable = 0;
-    for (var j = 0; j < reperes.length; j++) {
-      if (scrollFranchissement[j] <= defilant.scrollTop) dernierFranchi = j;
-      if (scrollFranchissement[j] <= maxScroll) dernierAtteignable = j;
+      if (absRep - ligneY <= defilant.scrollTop) dernierFranchi = i;
     }
 
     var indexDate;
@@ -1255,22 +1287,6 @@
       indexDate = reperes.length - 1;
     } else {
       indexDate = dernierFranchi;
-      // Repères finaux qui ne franchiront JAMAIS la ligne (plus assez de
-      // contenu derrière eux) : on les répartit progressivement sur la
-      // fin de course de l'ascenseur, pour qu'ils soient tous atteints
-      // au lieu d'apparaître d'un coup tout en bas.
-      var restants = reperes.length - 1 - dernierAtteignable;
-      if (restants > 0) {
-        var depart = scrollFranchissement[dernierAtteignable];
-        var course = Math.max(1, maxScroll - depart);
-        for (var r = 0; r < restants; r++) {
-          // seuil du (r+1)-ième repère non atteignable par la ligne
-          var seuil = depart + course * (r + 1) / (restants + 1);
-          if (defilant.scrollTop >= seuil) {
-            indexDate = dernierAtteignable + 1 + r;
-          }
-        }
-      }
     }
 
     var dateCourante = reperes[indexDate].date;
@@ -1343,7 +1359,7 @@
     // Le tiret est placé là où le repère franchit la ligne de lecture
     // (bord inférieur de l'en-tête) : cohérent avec la détection du radar
     var enteteBarre = panneauLecture.querySelector('.split-entete');
-    var seuilEntete = enteteBarre
+    var ligneFixeY = enteteBarre
       ? enteteBarre.getBoundingClientRect().bottom - panneauRect.top + decalageLigneLecturePx()
       : 60;
     var reperes = construireReperesPanneau();
@@ -1351,8 +1367,9 @@
       (function(rep) {
         // Position du repère dans le contenu défilable, indépendante du scroll :
         // rect.top - panneauRect.top + scrollTop = décalage absolu dans le contenu
-        var repScroll = rep.el.getBoundingClientRect().top - panneauRect.top +
-                        panneauLecture.scrollTop - seuilEntete;
+        var absRep = rep.el.getBoundingClientRect().top - panneauRect.top +
+                     panneauLecture.scrollTop;
+        var repScroll = scrollFranchissementRepere(panneauLecture, maxScroll, ligneFixeY, absRep);
         var percent = repScroll / maxScroll;
         if (percent < 0) percent = 0;
         if (percent > 1) percent = 1;
