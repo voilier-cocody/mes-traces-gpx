@@ -36,7 +36,8 @@ class Block:
     def __init__(self, kind, value, date=None):
         self.kind = kind  # "text" | "img" | "video" | "raw"
         self.value = value
-        self.date = date  # attribut data-date conservé (p/img)
+        self.date = date       # attribut data-date conservé (p/img)
+        self.caption = None   # légende Blogspot à restituer en <p>
 
 
 class Transformer(HTMLParser):
@@ -149,11 +150,7 @@ class Transformer(HTMLParser):
             imgs = state["imgs"]
             caption = (state["caption"] or "").strip()
             if caption and imgs:
-                imgs[-1].value = re.sub(
-                    r'alt="[^"]*"',
-                    f'alt="{html.escape(caption, quote=True)}"',
-                    imgs[-1].value,
-                )
+                imgs[-1].caption = caption
             elif caption and not imgs:
                 self.text_buf.append(caption)
                 self.flush_text()
@@ -207,14 +204,17 @@ def render(blocks):
         if gallery:
             chunks.append(
                 '<div class="galerie-grille">\n'
-                + "\n".join("  " + g for g in gallery)
+                + "\n".join("  " + g.value for g in gallery)
                 + "\n</div>"
             )
             gallery.clear()
 
     for blk in blocks:
         if blk.kind == "img":
-            gallery.append(blk.value)
+            gallery.append(blk)
+            if blk.caption:
+                flush_gallery()
+                chunks.append(f"<p>{blk.caption}</p>")
             continue
         flush_gallery()
         if blk.kind == "video":
