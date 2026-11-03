@@ -1037,6 +1037,9 @@
         ligneFixeY: entete
           ? entete.getBoundingClientRect().bottom - rectPanneau.top + decalageLigneLecturePx()
           : 60,
+        ligneHautY: entete
+          ? entete.getBoundingClientRect().bottom - rectPanneau.top
+          : 0,
         etiquette: panneauLecture.querySelector('.split-date'),
         anneeRef: panneauLecture._anneeRef
       };
@@ -1225,11 +1228,15 @@
   // POURCENTAGE_BALAYAGE : part de la course d'ascenseur réservée à chaque
   // extrémité (montée puis descente de la ligne). Une seule valeur à ajuster.
   var POURCENTAGE_BALAYAGE = 25;
-  function positionLigneLecture(defilant, maxScroll, ligneFixeY, s) {
+  // ligneHautY : point de départ du balayage en haut (par défaut 0). En mode
+  // split, la ligne part du bas de l'en-tête (sinon le triangle apparaîtrait
+  // au-dessus du titre de l'article).
+  function positionLigneLecture(defilant, maxScroll, ligneFixeY, s, ligneHautY) {
     if (maxScroll <= 0) return ligneFixeY;
     if (typeof s !== 'number') s = defilant.scrollTop;
+    if (typeof ligneHautY !== 'number') ligneHautY = 0;
     var marge = maxScroll * Math.max(0, Math.min(40, POURCENTAGE_BALAYAGE)) / 100;
-    if (s <= marge) return ligneFixeY * (s / marge);
+    if (s <= marge) return ligneHautY + (ligneFixeY - ligneHautY) * (s / marge);
     if (s >= maxScroll - marge) {
       return ligneFixeY + (defilant.clientHeight - ligneFixeY) *
              ((s - (maxScroll - marge)) / marge);
@@ -1240,11 +1247,11 @@
   // Position d'ascenseur à laquelle un repère (offset absolu absRep dans le
   // contenu défilable) franchit la ligne dynamique : résolution par
   // dichotomie, car la ligne bouge avec l'ascenseur (absRep - ligne(s) = s).
-  function scrollFranchissementRepere(defilant, maxScroll, ligneFixeY, absRep) {
+  function scrollFranchissementRepere(defilant, maxScroll, ligneFixeY, absRep, ligneHautY) {
     var bas = 0, haut = maxScroll;
     while (haut - bas > 1) {
       var milieu = (bas + haut) / 2;
-      if (absRep - positionLigneLecture(defilant, maxScroll, ligneFixeY, milieu) <= milieu) {
+      if (absRep - positionLigneLecture(defilant, maxScroll, ligneFixeY, milieu, ligneHautY) <= milieu) {
         haut = milieu;
       } else {
         bas = milieu;
@@ -1267,7 +1274,8 @@
     var maxScroll = panneauLecture.scrollHeight - panneauLecture.clientHeight;
     if (maxScroll < 0) maxScroll = 0;
     var y = positionLigneLecture(panneauLecture, maxScroll,
-                                basEntete + decalageLigneLecturePx());
+                                basEntete + decalageLigneLecturePx(),
+                                panneauLecture.scrollTop, basEntete);
     ligneVisuelle.style.bottom = (basEntete - y) + 'px';
   }
 
@@ -1290,7 +1298,7 @@
     // balaye le haut puis le bas de l'article : tout repère est atteignable,
     // plus besoin de répartition artificielle sur la fin de course.
     var rectDefilant = defilant.getBoundingClientRect();
-    var ligneY = positionLigneLecture(defilant, maxScroll, ctx.ligneFixeY);
+    var ligneY = positionLigneLecture(defilant, maxScroll, ctx.ligneFixeY, defilant.scrollTop, ctx.ligneHautY);
     var dernierFranchi = 0;
     for (var i = 0; i < reperes.length; i++) {
       var absRep = reperes[i].el.getBoundingClientRect().top - rectDefilant.top +
@@ -1377,9 +1385,10 @@
     // Le tiret est placé là où le repère franchit la ligne de lecture
     // (bord inférieur de l'en-tête) : cohérent avec la détection du radar
     var enteteBarre = panneauLecture.querySelector('.split-entete');
-    var ligneFixeY = enteteBarre
-      ? enteteBarre.getBoundingClientRect().bottom - panneauRect.top + decalageLigneLecturePx()
-      : 60;
+    var basEnteteBarre = enteteBarre
+      ? enteteBarre.getBoundingClientRect().bottom - panneauRect.top
+      : 0;
+    var ligneFixeY = basEnteteBarre + decalageLigneLecturePx();
     var reperes = construireReperesPanneau();
     for (var i = 0; i < reperes.length; i++) {
       (function(rep) {
@@ -1387,7 +1396,7 @@
         // rect.top - panneauRect.top + scrollTop = décalage absolu dans le contenu
         var absRep = rep.el.getBoundingClientRect().top - panneauRect.top +
                      panneauLecture.scrollTop;
-        var repScroll = scrollFranchissementRepere(panneauLecture, maxScroll, ligneFixeY, absRep);
+        var repScroll = scrollFranchissementRepere(panneauLecture, maxScroll, ligneFixeY, absRep, basEnteteBarre);
         var percent = repScroll / maxScroll;
         if (percent < 0) percent = 0;
         if (percent > 1) percent = 1;
