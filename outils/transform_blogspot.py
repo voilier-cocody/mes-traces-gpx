@@ -14,6 +14,8 @@ Règles appliquées :
   la class "galerie-item" ; la légende d'une image (cellule tr-caption)
   est restituée en paragraphe <p> sous la galerie
 - les images consécutives sont regroupées dans <div class="galerie-grille">
+- une image légendée devient <figure class="galerie-item"> avec sa
+  légende en <figcaption>, dans la grille et directement sous la photo
 - les iframes YouTube sont normalisées dans <div class="video-container">
 """
 
@@ -161,8 +163,11 @@ class Transformer(HTMLParser):
             if caption and imgs:
                 imgs[-1].caption = caption
             elif caption and not imgs:
-                self.text_buf.append(caption)
-                self.flush_text()
+                if self.blocks and self.blocks[-1].kind == "img":
+                    self.blocks[-1].caption = caption
+                else:
+                    self.text_buf.append(caption)
+                    self.flush_text()
             if self.table_stack:
                 self.table_stack[-1]["imgs"].extend(imgs)
             else:
@@ -175,6 +180,8 @@ class Transformer(HTMLParser):
                     if self.table_stack:
                         state = self.table_stack[-1]
                         state["caption"] = (state["caption"] or "") + text
+                    elif self.blocks and self.blocks[-1].kind == "img":
+                        self.blocks[-1].caption = text
                     else:
                         self.text_buf.append(text)
                 self.caption_tag = None
@@ -221,11 +228,21 @@ def render(blocks):
     chunks = []
     gallery = []
 
+    def item_markup(g):
+        if not g.caption:
+            return "  " + g.value
+        return (
+            '  <figure class="galerie-item">\n'
+            f"    {g.value}\n"
+            f"    <figcaption>{g.caption}</figcaption>\n"
+            "  </figure>"
+        )
+
     def flush_gallery():
         if gallery:
             chunks.append(
                 '<div class="galerie-grille">\n'
-                + "\n".join("  " + g.value for g in gallery)
+                + "\n".join(item_markup(g) for g in gallery)
                 + "\n</div>"
             )
             gallery.clear()
@@ -233,9 +250,6 @@ def render(blocks):
     for blk in blocks:
         if blk.kind == "img":
             gallery.append(blk)
-            if blk.caption:
-                flush_gallery()
-                chunks.append(f"<p>{blk.caption}</p>")
             continue
         flush_gallery()
         if blk.kind == "video":
