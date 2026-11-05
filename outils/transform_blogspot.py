@@ -12,7 +12,7 @@ Règles appliquées :
 - les liens autour des images sont supprimés (plus de lien sur les images)
 - les images sont nettoyées (sans width/height/border/style) et reçoivent
   la class "galerie-item" ; la légende d'une image (cellule tr-caption)
-  devient son attribut alt
+  est restituée en paragraphe <p> sous la galerie
 - les images consécutives sont regroupées dans <div class="galerie-grille">
 - les iframes YouTube sont normalisées dans <div class="video-container">
 """
@@ -52,6 +52,8 @@ class Transformer(HTMLParser):
         self.table_stack = []     # pile d'états : [{"imgs": [], "caption": None}]
         self.pending_caption = None
         self.iframe_attrs = None
+        self.caption_tag = None    # balise tr-caption ouverte : légende en cours
+        self.caption_buf = []
 
     # --- helpers -------------------------------------------------
 
@@ -99,6 +101,13 @@ class Transformer(HTMLParser):
             self.raw_buf = [self.get_starttag_text()]
             return
         if self.raw_tag:
+            return
+        if self.caption_tag is not None:
+            return
+        if "tr-caption" in (dict(attrs).get("class") or "").split():
+            self.flush_text()
+            self.caption_tag = tag
+            self.caption_buf = []
             return
         if tag == "img":
             d = dict(attrs)
@@ -159,6 +168,18 @@ class Transformer(HTMLParser):
             else:
                 self.blocks.extend(imgs)
             return
+        if self.caption_tag is not None:
+            if tag == self.caption_tag:
+                text = re.sub(r"\s+", " ", "".join(self.caption_buf)).strip()
+                if text:
+                    if self.table_stack:
+                        state = self.table_stack[-1]
+                        state["caption"] = (state["caption"] or "") + text
+                    else:
+                        self.text_buf.append(text)
+                self.caption_tag = None
+                self.caption_buf = []
+            return
         if tag == "iframe":
             if self.iframe_attrs is not None:
                 self.emit_video(self.iframe_attrs)
@@ -178,16 +199,16 @@ class Transformer(HTMLParser):
             return
         if self.iframe_attrs is not None:
             return
-        cls = self.get_starttag_text() or ""
-        if "tr-caption" in cls and self.table_stack:
-            state = self.table_stack[-1]
-            state["caption"] = (state["caption"] or "") + data
+        if self.caption_tag is not None:
+            self.caption_buf.append(data)
             return
         self.text_buf.append(data)
 
     def handle_entityref(self, name):
         if self.raw_tag:
             self.raw_buf.append(f"&{name};")
+        elif self.caption_tag is not None:
+            self.caption_buf.append(html.unescape(f"&{name};"))
         else:
             self.text_buf.append(html.unescape(f"&{name};"))
 
