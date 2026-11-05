@@ -14,8 +14,8 @@ Règles appliquées :
   la class "galerie-item" ; la légende d'une image (cellule tr-caption)
   est restituée en paragraphe <p> sous la galerie
 - les images consécutives sont regroupées dans <div class="galerie-grille">
-- une image légendée devient <figure class="galerie-item"> avec sa
-  légende en <figcaption>, dans la grille et directement sous la photo
+- chaque image est encapsulée dans <figure class="galerie-item"> ;
+  sa légende, s'il y en a une, devient un <figcaption> sous la photo
 - les iframes YouTube sont normalisées dans <div class="video-container">
 - avec --photos REPERTOIRE : la date de prise de vue (EXIF) de la photo
   originale est cherchée par nom de fichier et alimente data-date
@@ -293,14 +293,14 @@ def render(blocks):
     gallery = []
 
     def item_markup(g):
-        if not g.caption:
-            return "  " + g.value
-        return (
-            '  <figure class="galerie-item">\n'
-            f"    {g.value}\n"
-            f"    <figcaption>{g.caption}</figcaption>\n"
-            "  </figure>"
-        )
+        lines = [
+            '  <figure class="galerie-item">',
+            f"    {g.value}",
+        ]
+        if g.caption:
+            lines.append(f"    <figcaption>{g.caption}</figcaption>")
+        lines.append("  </figure>")
+        return "\n".join(lines)
 
     def flush_gallery():
         if gallery:
