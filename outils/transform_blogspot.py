@@ -15,13 +15,65 @@ Règles appliquées :
   est restituée en paragraphe <p> sous la galerie
 - les images consécutives sont regroupées dans <div class="galerie-grille">
 - les iframes YouTube sont normalisées dans <div class="video-container">
+- avec --photos REPERTOIRE : la date de prise de vue (EXIF) de la photo
+  originale est cherchée par nom de fichier et alimente data-date
+  (format "2024-07-15T14:32", aussi accepté par carte.js) ; photos non
+  trouvées ou sans date EXIF : pas de data-date, on passe à la suivante
 """
 
 import argparse
 import html
+import os
 import re
 import sys
 from html.parser import HTMLParser
+
+try:
+    from PIL import Image  # Pillow, pour lire la date EXIF des photos
+except ImportError:  # pragma: no cover - environnement sans Pillow
+    Image = None
+
+# Tags EXIF : date de prise de vue, sinon date de dernière modification.
+EXIF_DATETIME_ORIGINAL = 36867
+EXIF_DATETIME = 306
+
+# Format EXIF "2024:07:15 14:32:05" -> profil "2024-07-15T14:32" attendu
+# par carte.js ("2026-10-23" ou "2026-10-23T15:00").
+EXIF_DATE_RE = re.compile(
+    r"^(\d{4}):(\d{2}):(\d{2})\s+(\d{2}):(\d{2})(?::\d{2})?$"
+)
+
+
+def index_photos(racine):
+    """Indexe les photos d'un répertoire (récursif) par nom de fichier
+    sans extension, en minuscules : {"img_4274": "/chemin/IMG_4274.jpeg"}."""
+    index = {}
+    for dossier, _, fichiers in os.walk(racine):
+        for nom in fichiers:
+            racine_nom, _ = os.path.splitext(nom)
+            index.setdefault(racine_nom.lower(), os.path.join(dossier, nom))
+    return index
+
+
+def date_exif(chemin, cache={}):
+    """Date de prise de vue d'une photo (EXIF), ou None si introuvable.
+    Retourne une chaîne "2024-07-15T14:32" (date + heure)."""
+    if chemin in cache:
+        return cache[chemin]
+    resultat = None
+    try:
+        with Image.open(chemin) as img:
+            exif = img.getexif()
+            brut = exif.get(EXIF_DATETIME_ORIGINAL) or exif.get(EXIF_DATETIME)
+    except Exception:
+        brut = None  # format non lisible, HEIC sans support, etc. : on passe
+    if brut:
+        m = EXIF_DATE_RE.match(str(brut).strip())
+        if m:
+            annee, mois, jour, heure, minute = m.groups()
+            resultat = f"{annee}-{mois}-{jour}T{heure}:{minute}"
+    cache[chemin] = resultat
+    return resultat
 
 SELF_CLOSING = {"br", "img", "meta", "link", "input", "hr"}
 
@@ -41,7 +93,9 @@ class Block:
 
 
 class Transformer(HTMLParser):
-    def __init__(self):
+    def __init__(self, photos=None):
+        super().__init__(convert_charrefs=True)
+        self.photos = photos   # index {nom sans extension -> chemin} ou None
         super().__init__(convert_charrefs=True)
         self.blocks = []
         self.raw_stack = []       # tags script/style : contenu brut
@@ -54,6 +108,7 @@ class Transformer(HTMLParser):
         self.iframe_attrs = None
         self.caption_tag = None    # balise tr-caption ouverte : légende en cours
         self.caption_buf = []
+        self.stats = {"photos": 0, "avec_date": 0}
 
     # --- helpers -------------------------------------------------
 
@@ -74,6 +129,15 @@ class Transformer(HTMLParser):
         alt = (self.pending_caption or d.get("alt") or "Photo").strip()
         self.pending_caption = None
         date = d.get("data-date", "").strip()
+        if not date and self.photos:
+            self.stats["photos"] += 1
+            nom = os.path.basename(src.split("?")[0])
+            stem = os.path.splitext(nom)[0].lower()
+            chemin = self.photos.get(stem)
+            trouve = date_exif(chemin) if chemin else None
+            if trouve:
+                date = trouve
+                self.stats["avec_date"] += 1
         date_attr = f' data-date="{html.escape(date, quote=True)}" ' if date else " "
         return Block(
             "img",
@@ -250,11 +314,11 @@ def render(blocks):
     return "\n\n".join(chunks) + "\n"
 
 
-def transform(content):
-    parser = Transformer()
+def transform(content, photos=None):
+    parser = Transformer(photos)
     parser.feed(content)
     parser.close()
-    return render(parser.blocks)
+    return render(parser.blocks), parser.stats
 
 
 def main():
@@ -263,12 +327,43 @@ def main():
     )
     ap.add_argument("fichier", help="fichier HTML de l'article Blogspot")
     ap.add_argument("-o", "--output", help="fichier de sortie (défaut : stdout)")
+    ap.add_argument(
+        "-p", "--photos",
+        help=(
+            "répertoire (récursif) des photos originales : la date EXIF de "
+            "prise de vue alimente data-date par nom de fichier"
+        ),
+    )
     args = ap.parse_args()
+
+    photos = None
+    if args.photos:
+        if Image is None:
+            print(
+                "AVERTISSEMENT : Pillow absent, dates EXIF ignorées "
+                "(pip install Pillow)",
+                file=sys.stderr,
+            )
+        elif not os.path.isdir(args.photos):
+            sys.exit(f"Erreur : répertoire introuvable : {args.photos}")
+        else:
+            photos = index_photos(args.photos)
+            print(
+                f"Index photos : {len(photos)} fichiers dans {args.photos}",
+                file=sys.stderr,
+            )
 
     with open(args.fichier, encoding="utf-8") as f:
         content = f.read()
 
-    result = transform(content)
+    result, stats = transform(content, photos)
+
+    if photos:
+        print(
+            f"Dates EXIF : {stats['avec_date']} photo(s) datée(s) "
+            f"sur {stats['photos']}",
+            file=sys.stderr,
+        )
 
     if args.output:
         with open(args.output, "w", encoding="utf-8") as f:
