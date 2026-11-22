@@ -15,6 +15,11 @@
   var splitActif = false;       // Mode écran partagé : carte à gauche, lecture à droite
   var panneauLecture = null;    // Panneau latéral du mode split
   var separateurSplit = null;   // Barre verticale draggable entre carte et lecture (mode split)
+  // Constantes du découpage : AVANT l'appel à chargerRatioSplit() — les var sont
+  // hissées mais pas leurs valeurs, déclarées plus bas elles seraient undefined ici
+  var SPLIT_MIN = 20;           // % de largeur min pour la carte
+  var SPLIT_MAX = 80;           // % de largeur max pour la carte
+  var RATIO_SPLIT_DEFAUT = 40;  // découpage par défaut (40 % carte / 60 % liseuse)
   var ratioSplit = chargerRatioSplit(); // % de largeur de la carte en mode split (défaut 40)
   var indicateurLecture = null; // Marqueur : point de trace correspondant au paragraphe lu
   var registrePoints = [];      // Tous les points GPX horodatés, toutes traces confondues
@@ -852,10 +857,6 @@
   // --- SÉPARATEUR DRAGGABLE DU MODE SPLIT ---
   // Le découpage carte/liseuse se règle à la volée en tirant la barre
   // verticale entre les deux panneaux. Le ratio choisi est mémorisé.
-  var SPLIT_MIN = 20;      // % de largeur min pour la carte
-  var SPLIT_MAX = 80;      // % de largeur max pour la carte
-  var RATIO_SPLIT_DEFAUT = 40;
-
   function chargerRatioSplit() {
     try {
       var v = parseFloat(localStorage.getItem('gpx-split-ratio'));
@@ -870,6 +871,7 @@
 
   // Pose le découpage courant : carte à gauche (ratioSplit %), lecture à droite
   function appliquerRatioSplit(pct) {
+    if (!isFinite(pct)) pct = RATIO_SPLIT_DEFAUT;
     ratioSplit = Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, pct));
     var conteneurCarte = carte.getContainer();
     conteneurCarte.style.width = ratioSplit + '%';
