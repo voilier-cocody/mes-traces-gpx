@@ -14,6 +14,13 @@
   var popupLecteur = null;      // Popup lecteur d'article (unique, réutilisé)
   var splitActif = false;       // Mode écran partagé : carte à gauche, lecture à droite
   var panneauLecture = null;    // Panneau latéral du mode split
+  var separateurSplit = null;   // Barre verticale draggable entre carte et lecture (mode split)
+  // Constantes du découpage : AVANT l'appel à chargerRatioSplit() — les var sont
+  // hissées mais pas leurs valeurs, déclarées plus bas elles seraient undefined ici
+  var SPLIT_MIN = 20;           // % de largeur min pour la carte
+  var SPLIT_MAX = 80;           // % de largeur max pour la carte
+  var RATIO_SPLIT_DEFAUT = 40;  // découpage par défaut (40 % carte / 60 % liseuse)
+  var ratioSplit = chargerRatioSplit(); // % de largeur de la carte en mode split (défaut 40)
   var indicateurLecture = null; // Marqueur : point de trace correspondant au paragraphe lu
   var registrePoints = [];      // Tous les points GPX horodatés, toutes traces confondues
   var animationRadar = null;        // Animation en cours du radar (requestAnimationFrame)
@@ -594,11 +601,10 @@
             // Recentrage : la carte montre par défaut la position actuelle,
             // souvent loin de la trace du récit ouvert. On la centre sur le
             // point GPX du premier jour de navigation (même règle que le radar :
-            // jour visé à midi). ATTENTION : le panneau split occupe la moitié
+            // jour visé à midi). ATTENTION : le panneau split occupe la partie
             // droite — le recentrage ne peut se faire qu'UNE FOIS la carte
-            // réduite à 50 % (invalidateSize), sinon Leaflet centrerait le
-            // point sur l'ancienne géométrie pleine largeur, c'est-à-dire au
-            // milieu de l'écran… sous le panneau de lecture.
+            // réduite à sa largeur split (invalidateSize), sinon Leaflet
+            // centrerait le point sur l'ancienne géométrie pleine largeur.
             var dateRef = new Date(dateDebut.getTime());
             dateRef.setHours(12, 0, 0, 0);
             var pointDepart = null, ecartMin = Infinity;
@@ -612,14 +618,11 @@
               var latlngDepart = pointDepart.latlng;
               setTimeout(function() {
                 carte.invalidateSize();
-                var taille = carte.getSize();
                 carte.setView(latlngDepart, Math.max(carte.getZoom(), 10));
-                // La zone de lecture couvre la moitié droite de l'écran :
-                // le "centre visible" de la carte est donc à 25 % de la
-                // largeur. setView place le point à 50 % ; on décale la vue
-                // d'un quart de largeur vers la droite pour poser le point
-                // au milieu de la demi-carte dégagée du panneau.
-                carte.panBy([Math.round(taille.x / 4), 0]);
+                // La carte n'occupe que ratioSplit % de la largeur à gauche,
+                // le panneau couvre le reste : setView centre le point au
+                // milieu de la carte, donc au milieu de la zone visible —
+                // aucun décalage de vue nécessaire.
               }, 400);
             }
           }
@@ -851,16 +854,114 @@
     return meilleur.el;
   }
 
+  // --- SÉPARATEUR DRAGGABLE DU MODE SPLIT ---
+  // Le découpage carte/liseuse se règle à la volée en tirant la barre
+  // verticale entre les deux panneaux. Le ratio choisi est mémorisé.
+  function chargerRatioSplit() {
+    try {
+      var v = parseFloat(localStorage.getItem('gpx-split-ratio'));
+      if (!isNaN(v)) return Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, v));
+    } catch (e) { /* localStorage indisponible : ratio par défaut */ }
+    return RATIO_SPLIT_DEFAUT;
+  }
+
+  function sauvegarderRatioSplit() {
+    try { localStorage.setItem('gpx-split-ratio', String(ratioSplit)); } catch (e) {}
+  }
+
+  // Pose le découpage courant : carte à gauche (ratioSplit %), lecture à droite
+  function appliquerRatioSplit(pct) {
+    if (!isFinite(pct)) pct = RATIO_SPLIT_DEFAUT;
+    ratioSplit = Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, pct));
+    var conteneurCarte = carte.getContainer();
+    conteneurCarte.style.width = ratioSplit + '%';
+    if (panneauLecture) {
+      panneauLecture.style.left = ratioSplit + '%';
+      panneauLecture.style.right = 'auto';
+      panneauLecture.style.width = (100 - ratioSplit) + '%';
+    }
+    if (separateurSplit) separateurSplit.style.left = ratioSplit + '%';
+    // Leaflet ne suit pas seul un redimensionnement de son conteneur
+    carte.invalidateSize({ animate: false });
+  }
+
+  function creerSeparateurSplit(hote) {
+    separateurSplit = document.createElement('div');
+    separateurSplit.className = 'split-separateur';
+    separateurSplit.title = 'Glisser pour redimensionner — double-clic pour revenir à ' + RATIO_SPLIT_DEFAUT + ' %';
+    hote.appendChild(separateurSplit);
+
+    // Comme le panneau, le séparateur est un enfant du conteneur de la
+    // carte : on isole Leaflet (zoom au mousedown, drag de la carte...)
+    ['wheel', 'mousedown', 'touchstart', 'touchmove'].forEach(function(evenement) {
+      separateurSplit.addEventListener(evenement, function(e) {
+        e.stopPropagation();
+      }, { passive: true });
+    });
+
+    // Pendant le drag, chaque déplacement ne fait que mémoriser le ratio ;
+    // l'application réelle (largeurs + invalidateSize de Leaflet) est
+    // lissée à une fois par image affichée.
+    var ratioEnAttente = null;
+    var rafEnCours = false;
+    function appliquerEnRaf(pct) {
+      ratioEnAttente = pct;
+      if (rafEnCours) return;
+      rafEnCours = true;
+      requestAnimationFrame(function() {
+        rafEnCours = false;
+        if (ratioEnAttente !== null) {
+          var p = ratioEnAttente;
+          ratioEnAttente = null;
+          appliquerRatioSplit(p);
+        }
+      });
+    }
+
+    separateurSplit.addEventListener('pointerdown', function(e) {
+      if (e.button !== undefined && e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      separateurSplit.setPointerCapture(e.pointerId);
+      separateurSplit.classList.add('actif');
+      // En plein écran natif, seuls l'élément plein écran et ses descendants
+      // sont affichés : on pose les styles sur la bonne racine
+      var racine = document.fullscreenElement || document.documentElement;
+      racine.style.userSelect = 'none';
+      racine.style.cursor = 'col-resize';
+    });
+    separateurSplit.addEventListener('pointermove', function(e) {
+      if (!separateurSplit.classList.contains('actif')) return;
+      e.preventDefault();
+      appliquerEnRaf((e.clientX / window.innerWidth) * 100);
+    });
+    function terminerDrag() {
+      if (!separateurSplit.classList.contains('actif')) return;
+      separateurSplit.classList.remove('actif');
+      var racine = document.fullscreenElement || document.documentElement;
+      racine.style.userSelect = '';
+      racine.style.cursor = '';
+      appliquerRatioSplit(ratioSplit); // passe finale propre (dernier invalidateSize)
+      sauvegarderRatioSplit();
+    }
+    separateurSplit.addEventListener('pointerup', terminerDrag);
+    separateurSplit.addEventListener('pointercancel', terminerDrag);
+    // Double-clic : retour au découpage par défaut
+    separateurSplit.addEventListener('dblclick', function(e) {
+      e.stopPropagation();
+      appliquerRatioSplit(RATIO_SPLIT_DEFAUT);
+      sauvegarderRatioSplit();
+    });
+  }
+
   // --- MODE ÉCRAN PARTAGÉ (split) : carte à gauche, lecture à droite ---
   // Bascule entre le mode popup (normal) et le mode panneau latéral
   function basculerSplit() {
     var conteneurCarte = carte.getContainer();
 
     if (!splitActif) {
-      // Entrée en mode split : la carte occupe la moitié gauche
+      // Entrée en mode split : la carte occupe le ratio courant à gauche
       splitActif = true;
-      conteneurCarte.style.width = '50%';
-      carte.invalidateSize();
 
       creerRadar();
 
@@ -888,6 +989,11 @@
       // pas au body, sinon il reste invisible derrière.
       var hotePanneau = document.fullscreenElement || conteneurCarte;
       hotePanneau.appendChild(panneauLecture);
+
+      // Séparateur draggable, puis pose du découpage courant (largeurs des
+      // deux panneaux + invalidateSize pour que Leaflet recalcule sa taille)
+      creerSeparateurSplit(hotePanneau);
+      appliquerRatioSplit(ratioSplit);
 
       // Position initiale du triangle de lecture : ligne dynamique à scrollTop 0
       majLigneVisuelle();
@@ -953,6 +1059,10 @@
       conteneurCarte.style.width = '';
       carte.invalidateSize();
       supprimerRadar();
+      if (separateurSplit && separateurSplit.parentNode) {
+        separateurSplit.parentNode.removeChild(separateurSplit);
+      }
+      separateurSplit = null;
       if (panneauLecture && panneauLecture.parentNode) {
         panneauLecture.parentNode.removeChild(panneauLecture);
       }

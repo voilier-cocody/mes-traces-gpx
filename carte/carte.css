@@ -109,6 +109,33 @@
     opacity: 0 !important;
   }
 
+  /* --- SÉPARATEUR DRAGGABLE (mode split) : barre entre carte et lecture --- */
+  .split-separateur {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    width: 12px;
+    margin-left: -6px; /* barre centrée sur la frontière entre les deux panneaux */
+    cursor: col-resize;
+    z-index: 100002; /* au-dessus du panneau de lecture (100001) */
+    touch-action: none; /* le doigt fait glisser la barre, pas la page */
+  }
+  .split-separateur::before {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: rgba(44, 62, 80, 0.35);
+  }
+  .split-separateur:hover::before,
+  .split-separateur.actif::before {
+    left: 4px;
+    width: 4px;
+    background: #3498db;
+  }
+
   /* --- INDICATEUR DE LECTURE (mode split) : zone radar "par ici" --- */
   .radar-lecture { background: none; border: none; }
   .radar-lecture .radar-anneaux {

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Test local — carte du voilier (branche de dev)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.fullscreen@2.4.0/Control.FullScreen.css">
+<link rel="stylesheet" href="carte.css">
+<style>
+  html, body { margin: 0; height: 100%; }
+  #carte { width: 100vw; height: 100vh; }
+  #bandeau-test {
+    position: fixed; top: 8px; left: 50%; transform: translateX(-50%);
+    z-index: 100000; background: #2c3e50; color: #fff; padding: 8px 14px;
+    border-radius: 6px; font: 13px sans-serif; white-space: nowrap;
+  }
+  #bandeau-test button { margin-left: 8px; padding: 4px 10px; cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="carte"></div>
+<div id="bandeau-test">
+  Test local —
+  <button onclick="activerLectureCarte()">Lecture immersive (plein écran + split)</button>
+  <button onclick="activerPleinEcranCarte()">Plein écran seul</button>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-gpx@1.8.0/gpx.js"></script>
+<script src="https://unpkg.com/leaflet.fullscreen@2.4.0/Control.FullScreen.js"></script>
+<script>
+  // Variables optionnelles lues par carte.js (cf. en-tête du fichier)
+  var myLat = 43.4000, myLng = 5.0317, myZoom = 6;
+</script>
+<script src="carte.js"></script>
+</body>
+</html>
