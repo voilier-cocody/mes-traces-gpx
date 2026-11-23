@@ -14,6 +14,10 @@
   var popupLecteur = null;      // Popup lecteur d'article (unique, réutilisé)
   var splitActif = false;       // Mode écran partagé : carte à gauche, lecture à droite
   var panneauLecture = null;    // Panneau latéral du mode split
+  var pageEntiereActif = false; // Mode "page entière" : la carte couvre la fenêtre du navigateur
+  var stylesConteneurSauvegardes = null; // Styles inline du conteneur avant le mode page entière
+  var placeConteneurSauvegardee = null; // {parent, next} : position d'origine du conteneur dans le widget
+  var boutonQuitterPage = null; // Bouton ✕ de sortie du mode page entière
   var separateurSplit = null;   // Barre verticale draggable entre carte et lecture (mode split)
   // Constantes du découpage : AVANT l'appel à chargerRatioSplit() — les var sont
   // hissées mais pas leurs valeurs, déclarées plus bas elles seraient undefined ici
@@ -304,7 +308,7 @@
             }
 
             var articleCorrespondant = trouverLienArticle(dateProche);
-            var estEnPleinEcran = carte.getContainer().classList.contains('leaflet-fullscreen-on');
+            var estEnPleinEcran = estModeImmersif();
             var popupContent = '';
             var optionsPopup = {};
 
@@ -550,102 +554,216 @@
 
   window.chargeMaCarte = function() { initCarteAutonome(); };
 
+  // --- MODE "PAGE ENTIÈRE" : la carte couvre toute la fenêtre du navigateur ---
+  // Contrairement au plein écran natif (requestFullscreen), on reste dans la
+  // fenêtre du browser : overlay fixed 100vw x 100vh. Le panneau split et le
+  // séparateur sont déjà en position:fixed, donc visibles tels quels.
+  function estModeImmersif() {
+    return pageEntiereActif ||
+           (carte && carte.getContainer().classList.contains('leaflet-fullscreen-on'));
+  }
+
+  function majVisibiliteBoutonQuitterPage() {
+    // En mode split, le ✕ du panneau sert à quitter le split : on masque le
+    // bouton "page entière" pour éviter deux ✕ superposés en haut à droite
+    if (boutonQuitterPage) boutonQuitterPage.style.display = splitActif ? 'none' : '';
+  }
+
+  function appliquerPageEntiere() {
+    if (pageEntiereActif || !carte) return;
+    var conteneur = carte.getContainer();
+    // Sauvegarde des styles inline actuels (le widget du blog peut en poser)
+    var props = ['position', 'top', 'left', 'width', 'height', 'z-index', 'margin'];
+    stylesConteneurSauvegardes = {};
+    props.forEach(function(p) {
+      stylesConteneurSauvegardes[p] = conteneur.style.getPropertyValue(p);
+    });
+    // Sortir le conteneur du widget Blogger : un ancêtre du thème peut créer un
+    // stacking context (transform, z-index...) qui empêcherait la carte de
+    // dépasser la sidebar, même avec le z-index max. Déplacé en DERNIER enfant
+    // de <body>, le conteneur passe devant en cas d'égalité de z-index.
+    placeConteneurSauvegardee = { parent: conteneur.parentNode, next: conteneur.nextSibling };
+    document.body.appendChild(conteneur);
+    conteneur.style.position = 'fixed';
+    conteneur.style.top = '0';
+    conteneur.style.left = '0';
+    conteneur.style.width = splitActif ? ratioSplit + '%' : '100vw';
+    conteneur.style.height = '100vh';
+    // z-index max : au-dessus de tout le thème Blogger (sidebar sticky, header,
+    // menus avec des z-index élevés). Le panneau split (100001), le séparateur
+    // (100002) et le bouton ✕ (100003) restent visibles : enfants du conteneur,
+    // ils vivent dans son stacking context.
+    conteneur.style.zIndex = '2147483647';
+    conteneur.style.margin = '0';
+    document.body.style.overflow = 'hidden';
+    pageEntiereActif = true;
+
+    boutonQuitterPage = document.createElement('button');
+    boutonQuitterPage.className = 'btn-quitter-page-entiere';
+    boutonQuitterPage.textContent = '✕';
+    boutonQuitterPage.title = 'Quitter le mode page entière (Échap)';
+    boutonQuitterPage.addEventListener('click', function(e) {
+      e.stopPropagation();
+      quitterPageEntiere();
+    });
+    conteneur.appendChild(boutonQuitterPage);
+    majVisibiliteBoutonQuitterPage();
+
+    // Recalage de la taille une fois l'overlay installé
+    setTimeout(function() { carte.invalidateSize(); }, 300);
+  }
+
+  function quitterPageEntiere() {
+    if (!pageEntiereActif || !carte) return;
+    var conteneur = carte.getContainer();
+    // Remettre le conteneur à sa place d'origine dans le widget
+    if (placeConteneurSauvegardee) {
+      var pl = placeConteneurSauvegardee;
+      if (pl.next) pl.parent.insertBefore(conteneur, pl.next);
+      else pl.parent.appendChild(conteneur);
+      placeConteneurSauvegardee = null;
+    }
+    if (stylesConteneurSauvegardes) {
+      Object.keys(stylesConteneurSauvegardes).forEach(function(p) {
+        conteneur.style.setProperty(p, stylesConteneurSauvegardes[p]);
+      });
+      stylesConteneurSauvegardes = null;
+    }
+    document.body.style.overflow = '';
+    pageEntiereActif = false;
+    if (boutonQuitterPage && boutonQuitterPage.parentNode) {
+      boutonQuitterPage.parentNode.removeChild(boutonQuitterPage);
+    }
+    boutonQuitterPage = null;
+    // Le split ne tient que dans la fenêtre entière : on le quitte avec
+    if (splitActif) basculerSplit();
+    setTimeout(function() { carte.invalidateSize(); }, 300);
+  }
+
+  // Appelable depuis un bouton du blog : onclick="activerPageEntiereCarte()"
+  // Ne fait qu'afficher la carte sur toute la fenêtre — pas de split, pas d'article.
+  window.activerPageEntiereCarte = function() {
+    if (!carte) return;
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
+    appliquerPageEntiere();
+  };
+
+  // Page entière + écran partagé + récit le plus récent :
+  // onclick="activerLecturePageEntiere()"
+  window.activerLecturePageEntiere = function() {
+    if (!carte) return;
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
+    appliquerPageEntiere();
+    demarrerLectureImmersive();
+  };
+
+  // Lance la lecture immersive (écran partagé + récit le plus récent) :
+  // commun au plein écran natif et au mode page entière
+  function demarrerLectureImmersive() {
+    setTimeout(function() {
+      carte.invalidateSize();
+
+      // La table des articles (articles.json) et les points GPX peuvent ne
+      // pas être encore chargés si l'utilisateur clique très tôt : on attend
+      // qu'ils soient prêts (polling toutes les 200 ms, ~10 s maximum).
+      var tentatives = 0;
+      function ouvrirDernierRecit() {
+        if (liensArticles.length === 0 || registrePoints.length === 0) {
+          tentatives++;
+          if (tentatives <= 50) {
+            setTimeout(ouvrirDernierRecit, 200);
+            return;
+          }
+          // Table injoignable : on ouvre quand même l'écran partagé
+          if (!splitActif) basculerSplit();
+          return;
+        }
+
+        // Récit le plus récent = date de fin la plus tardive (champ fin valide)
+        var meilleur = null, meilleureFin = null;
+        for (var i = 0; i < liensArticles.length; i++) {
+          var fin = (liensArticles[i] && liensArticles[i].fin) ? new Date(liensArticles[i].fin) : null;
+          if (fin && (!meilleureFin || fin > meilleureFin)) {
+            meilleureFin = fin;
+            meilleur = liensArticles[i];
+          }
+        }
+
+        if (!splitActif) basculerSplit();
+        if (meilleur) {
+          // Ouverture au DÉBUT du récit : date de début, premier paragraphe,
+          // radar sur le point de départ de la sortie
+          var dateDebut = (meilleur.debut) ? new Date(meilleur.debut) : meilleureFin;
+          var dateTexte = dateDebut.toLocaleDateString('fr-FR', {
+            day: 'numeric', month: 'long', year: 'numeric'
+          });
+          remplirPanneauSplit(meilleur, dateDebut, dateTexte);
+
+          // Recentrage : la carte montre par défaut la position actuelle,
+          // souvent loin de la trace du récit ouvert. On la centre sur le
+          // point GPX du premier jour de navigation (même règle que le radar :
+          // jour visé à midi). ATTENTION : le panneau split occupe la partie
+          // droite — le recentrage ne peut se faire qu'UNE FOIS la carte
+          // réduite à sa largeur split (invalidateSize), sinon Leaflet
+          // centrerait le point sur l'ancienne géométrie pleine largeur.
+          var dateRef = new Date(dateDebut.getTime());
+          dateRef.setHours(12, 0, 0, 0);
+          var pointDepart = null, ecartMin = Infinity;
+          for (var p = 0; p < registrePoints.length; p++) {
+            var pt = registrePoints[p];
+            if (!carte.hasLayer(gpxLayers[pt.saison])) continue;
+            var ecart = Math.abs(pt.date.getTime() - dateRef.getTime());
+            if (ecart < ecartMin) { ecartMin = ecart; pointDepart = pt; }
+          }
+          if (pointDepart) {
+            var latlngDepart = pointDepart.latlng;
+            setTimeout(function() {
+              carte.invalidateSize();
+              carte.setView(latlngDepart, Math.max(carte.getZoom(), 10));
+              // La carte n'occupe que ratioSplit % de la largeur à gauche,
+              // le panneau couvre le reste : setView centre le point au
+              // milieu de la carte, donc au milieu de la zone visible —
+              // aucun décalage de vue nécessaire.
+            }, 400);
+          }
+        }
+      }
+      ouvrirDernierRecit();
+    }, 200); // laisser le mode plein écran s'installer avant d'ajuster la carte
+  }
+
   // --- RACCOURCI "LECTURE IMMERSIVE" (un seul clic) ---
-  // Plein écran + écran partagé + ouverture du récit le plus récent.
+  // Plein écran natif + écran partagé + ouverture du récit le plus récent.
   // Appelable depuis n'importe où dans le blog (widget de barre latérale,
   // bouton dans un article...) : onclick="activerLectureCarte()"
   window.activerLectureCarte = function() {
     var conteneur = document.getElementById('carte');
     if (!conteneur || !carte) return;
 
-    function demarrer() {
-      setTimeout(function() {
-        carte.invalidateSize();
-
-        // La table des articles (articles.json) et les points GPX peuvent ne
-        // pas être encore chargés si l'utilisateur clique très tôt : on attend
-        // qu'ils soient prêts (polling toutes les 200 ms, ~10 s maximum).
-        var tentatives = 0;
-        function ouvrirDernierRecit() {
-          if (liensArticles.length === 0 || registrePoints.length === 0) {
-            tentatives++;
-            if (tentatives <= 50) {
-              setTimeout(ouvrirDernierRecit, 200);
-              return;
-            }
-            // Table injoignable : on ouvre quand même l'écran partagé
-            if (!splitActif) basculerSplit();
-            return;
-          }
-
-          // Récit le plus récent = date de fin la plus tardive (champ fin valide)
-          var meilleur = null, meilleureFin = null;
-          for (var i = 0; i < liensArticles.length; i++) {
-            var fin = (liensArticles[i] && liensArticles[i].fin) ? new Date(liensArticles[i].fin) : null;
-            if (fin && (!meilleureFin || fin > meilleureFin)) {
-              meilleureFin = fin;
-              meilleur = liensArticles[i];
-            }
-          }
-
-          if (!splitActif) basculerSplit();
-          if (meilleur) {
-            // Ouverture au DÉBUT du récit : date de début, premier paragraphe,
-            // radar sur le point de départ de la sortie
-            var dateDebut = (meilleur.debut) ? new Date(meilleur.debut) : meilleureFin;
-            var dateTexte = dateDebut.toLocaleDateString('fr-FR', {
-              day: 'numeric', month: 'long', year: 'numeric'
-            });
-            remplirPanneauSplit(meilleur, dateDebut, dateTexte);
-
-            // Recentrage : la carte montre par défaut la position actuelle,
-            // souvent loin de la trace du récit ouvert. On la centre sur le
-            // point GPX du premier jour de navigation (même règle que le radar :
-            // jour visé à midi). ATTENTION : le panneau split occupe la partie
-            // droite — le recentrage ne peut se faire qu'UNE FOIS la carte
-            // réduite à sa largeur split (invalidateSize), sinon Leaflet
-            // centrerait le point sur l'ancienne géométrie pleine largeur.
-            var dateRef = new Date(dateDebut.getTime());
-            dateRef.setHours(12, 0, 0, 0);
-            var pointDepart = null, ecartMin = Infinity;
-            for (var p = 0; p < registrePoints.length; p++) {
-              var pt = registrePoints[p];
-              if (!carte.hasLayer(gpxLayers[pt.saison])) continue;
-              var ecart = Math.abs(pt.date.getTime() - dateRef.getTime());
-              if (ecart < ecartMin) { ecartMin = ecart; pointDepart = pt; }
-            }
-            if (pointDepart) {
-              var latlngDepart = pointDepart.latlng;
-              setTimeout(function() {
-                carte.invalidateSize();
-                carte.setView(latlngDepart, Math.max(carte.getZoom(), 10));
-                // La carte n'occupe que ratioSplit % de la largeur à gauche,
-                // le panneau couvre le reste : setView centre le point au
-                // milieu de la carte, donc au milieu de la zone visible —
-                // aucun décalage de vue nécessaire.
-              }, 400);
-            }
-          }
-        }
-        ouvrirDernierRecit();
-      }, 200); // laisser le plein écran s'installer avant d'ajuster la carte
-    }
-
     if (!document.fullscreenElement && conteneur.requestFullscreen) {
       // La promesse se résout quand le plein écran est effectivement actif ;
       // en cas de refus (navigateur sans plein écran natif), on continue quand même
       var promesse = conteneur.requestFullscreen();
       if (promesse && promesse.then) {
-        promesse.then(demarrer, demarrer);
+        promesse.then(demarrerLectureImmersive, demarrerLectureImmersive);
       } else {
-        demarrer();
+        demarrerLectureImmersive();
       }
     } else {
-      demarrer();
+      demarrerLectureImmersive();
     }
   };
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', initCarteAutonome); } else { initCarteAutonome(); }
   window.addEventListener('load', initCarteAutonome);
+
+  // Échap quitte le mode page entière (en plein écran natif, l'OS gère Échap)
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && pageEntiereActif && !document.fullscreenElement) quitterPageEntiere();
+  });
+  // Redimensionnement de la fenêtre en mode immersif : Leaflet doit recalculer
+  window.addEventListener('resize', function() {
+    if (carte && estModeImmersif()) carte.invalidateSize({ animate: false });
+  });
 
   // Cache des articles déjà téléchargés : re-cliquer dans le même article
   // ne retélécharge rien (ni HTML ni images), plus de "saut" à l'écran
@@ -1053,10 +1171,13 @@
         // Le popup n'a plus lieu d'être : la carte est entièrement visible à gauche
         carte.closePopup(popupLecteur);
       }
+      majVisibiliteBoutonQuitterPage();
     } else {
-      // Sortie du mode split : la carte reprend toute la largeur
+      // Sortie du mode split : la carte reprend toute la largeur — ou la
+      // pleine fenêtre si le mode page entière est actif (sinon la carte
+      // retomberait à la taille du widget)
       splitActif = false;
-      conteneurCarte.style.width = '';
+      conteneurCarte.style.width = pageEntiereActif ? '100vw' : '';
       carte.invalidateSize();
       supprimerRadar();
       if (separateurSplit && separateurSplit.parentNode) {
@@ -1067,6 +1188,7 @@
         panneauLecture.parentNode.removeChild(panneauLecture);
       }
       panneauLecture = null;
+      majVisibiliteBoutonQuitterPage();
     }
   }
 
