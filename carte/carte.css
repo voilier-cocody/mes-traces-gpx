@@ -155,9 +155,8 @@
   .btn-quitter-page-entiere:hover { background: #c0392b; }
 
   /* --- PASTILLE "TITRE DU BLOG + ✕" EN HAUT (modes immersifs) --- */
-  /* Div autonome créé par carte.js, centré sur la zone carte
-     (--rs = % de largeur carte, posé en JS ; 100 = fenêtre entière).
-     Les icônes Leaflet (coins, z-index 1000) ne sont PAS déplacées. */
+  /* Div autonome créé par carte.js, centré sur la zone carte (left:50% du
+     conteneur). Les icônes Leaflet (coins, z-index 1000) ne sont PAS déplacées. */
   .leaflet-container .pastille-titre {
     position: absolute !important;
     top: 10px !important;
