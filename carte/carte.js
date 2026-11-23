@@ -16,6 +16,7 @@
   var panneauLecture = null;    // Panneau latéral du mode split
   var pageEntiereActif = false; // Mode "page entière" : la carte couvre la fenêtre du navigateur
   var stylesConteneurSauvegardes = null; // Styles inline du conteneur avant le mode page entière
+  var placeConteneurSauvegardee = null; // {parent, next} : position d'origine du conteneur dans le widget
   var boutonQuitterPage = null; // Bouton ✕ de sortie du mode page entière
   var separateurSplit = null;   // Barre verticale draggable entre carte et lecture (mode split)
   // Constantes du découpage : AVANT l'appel à chargerRatioSplit() — les var sont
@@ -577,6 +578,12 @@
     props.forEach(function(p) {
       stylesConteneurSauvegardes[p] = conteneur.style.getPropertyValue(p);
     });
+    // Sortir le conteneur du widget Blogger : un ancêtre du thème peut créer un
+    // stacking context (transform, z-index...) qui empêcherait la carte de
+    // dépasser la sidebar, même avec le z-index max. Déplacé en DERNIER enfant
+    // de <body>, le conteneur passe devant en cas d'égalité de z-index.
+    placeConteneurSauvegardee = { parent: conteneur.parentNode, next: conteneur.nextSibling };
+    document.body.appendChild(conteneur);
     conteneur.style.position = 'fixed';
     conteneur.style.top = '0';
     conteneur.style.left = '0';
@@ -609,6 +616,13 @@
   function quitterPageEntiere() {
     if (!pageEntiereActif || !carte) return;
     var conteneur = carte.getContainer();
+    // Remettre le conteneur à sa place d'origine dans le widget
+    if (placeConteneurSauvegardee) {
+      var pl = placeConteneurSauvegardee;
+      if (pl.next) pl.parent.insertBefore(conteneur, pl.next);
+      else pl.parent.appendChild(conteneur);
+      placeConteneurSauvegardee = null;
+    }
     if (stylesConteneurSauvegardes) {
       Object.keys(stylesConteneurSauvegardes).forEach(function(p) {
         conteneur.style.setProperty(p, stylesConteneurSauvegardes[p]);
