@@ -18,17 +18,8 @@
   var stylesConteneurSauvegardes = null; // Styles inline du conteneur avant le mode page entière
   var placeConteneurSauvegardee = null; // {parent, next} : position d'origine du conteneur dans le widget
   var boutonQuitterPage = null; // Bouton ✕ de sortie du mode page entière
-  var placeHeaderSauvegardee = null; // {parent, next, header} : place d'origine du header-widget hors mode immersif
-  var SELECTEUR_HEADER_WIDGET = '.header-widget, .widget.header, .widget.Header'; // fallback si le flag [i] n'est pas supporté
-  // Sélecteur insensible à la casse (Blogger génère parfois "widget Header") :
-  // le flag [i] de l'attribut class est prioritaire, le fallback sinon.
-  function trouverHeaderWidget() {
-    try {
-      return document.querySelector('[class~="header-widget" i], [class~="widget"][class~="header" i]');
-    } catch (e) {
-      return document.querySelector(SELECTEUR_HEADER_WIDGET);
-    }
-  }
+  var TEXTE_TITRE_BLOG = 'Le VOYAGE DE COCODY'; // texte de la pastille affichée en haut de la carte en mode immersif
+  var pastilleTitre = null; // Div autonome "titre + ✕" affiché en haut de la carte en mode immersif
   var separateurSplit = null;   // Barre verticale draggable entre carte et lecture (mode split)
   // Constantes du découpage : AVANT l'appel à chargerRatioSplit() — les var sont
   // hissées mais pas leurs valeurs, déclarées plus bas elles seraient undefined ici
@@ -191,17 +182,17 @@
     function quitterSplitSiActif() {
       if (splitActif) basculerSplit();
     }
-    carte.on('enterFullscreen', installerHeaderDansCarte);
+    carte.on('enterFullscreen', installerPastilleTitre);
     carte.on('exitFullscreen', function() {
       quitterSplitSiActif();
-      if (!pageEntiereActif) restaurerHeader();
+      if (!pageEntiereActif) retirerPastilleTitre();
     });
     document.addEventListener('fullscreenchange', function() {
       if (document.fullscreenElement) {
-        installerHeaderDansCarte();
+        installerPastilleTitre();
       } else {
         quitterSplitSiActif();
-        if (!pageEntiereActif) restaurerHeader();
+        if (!pageEntiereActif) retirerPastilleTitre();
       }
     });
 
@@ -583,39 +574,31 @@
            (carte && carte.getContainer().classList.contains('leaflet-fullscreen-on'));
   }
 
-  // --- HEADER DU BLOG AU-DESSUS DE LA CARTE (modes immersifs) ---
-  // En plein écran natif, seuls l'élément fullscreen et ses descendants sont
-  // rendus : le header-widget doit donc être DÉPLACÉ (pas cloné : pas d'id
-  // dupliqué) dans le conteneur carte, en barre absolute en haut.
-  function installerHeaderDansCarte() {
-    if (placeHeaderSauvegardee || !carte) return; // déjà en place
-    var header = trouverHeaderWidget();
-    if (!header) return;
+  // --- PASTILLE "TITRE DU BLOG" AU-DESSUS DE LA CARTE (modes immersifs) ---
+  // Div autonome (indépendant du thème Blogger), créé par carte.js et enfant du
+  // conteneur carte : en plein écran natif il est donc rendu (seuls les
+  // descendants du fullscreenElement le sont). Centré sur la zone carte :
+  // --rs = % de largeur de la carte (100 = fenêtre entière, ratioSplit en split).
+  function installerPastilleTitre() {
+    if (pastilleTitre || !carte) return; // déjà en place
     var conteneur = carte.getContainer();
-    if (conteneur.contains(header)) return;
-    placeHeaderSauvegardee = { parent: header.parentNode, next: header.nextSibling, header: header };
-    header.classList.add('header-widget-en-mode');
-    conteneur.insertBefore(header, conteneur.firstChild);
-    // --rs = % de largeur occupé par la carte : la pastille reste centrée sur
-    // la zone carte même en mode split (100 = fenêtre entière)
     conteneur.style.setProperty('--rs', splitActif ? ratioSplit : 100);
-    conteneur.classList.add('avec-header');
+    pastilleTitre = document.createElement('div');
+    pastilleTitre.className = 'pastille-titre';
+    var titre = document.createElement('span');
+    titre.className = 'titre-blog';
+    titre.textContent = TEXTE_TITRE_BLOG;
+    pastilleTitre.appendChild(titre);
     // Le ✕ de sortie du mode page entière est intégré à la pastille
-    if (boutonQuitterPage) header.appendChild(boutonQuitterPage);
+    if (boutonQuitterPage) pastilleTitre.appendChild(boutonQuitterPage);
+    conteneur.insertBefore(pastilleTitre, conteneur.firstChild);
   }
 
-  function restaurerHeader() {
-    if (!placeHeaderSauvegardee) return;
-    var pl = placeHeaderSauvegardee;
-    pl.header.classList.remove('header-widget-en-mode');
-    if (pl.next) pl.parent.insertBefore(pl.header, pl.next);
-    else pl.parent.appendChild(pl.header);
-    placeHeaderSauvegardee = null;
-    if (carte) {
-      var conteneur = carte.getContainer();
-      conteneur.classList.remove('avec-header');
-      conteneur.style.removeProperty('--rs');
-    }
+  function retirerPastilleTitre() {
+    if (!pastilleTitre) return;
+    if (pastilleTitre.parentNode) pastilleTitre.parentNode.removeChild(pastilleTitre);
+    pastilleTitre = null;
+    if (carte) carte.getContainer().style.removeProperty('--rs');
   }
 
   function appliquerPageEntiere() {
@@ -656,7 +639,7 @@
       quitterPageEntiere();
     });
     conteneur.appendChild(boutonQuitterPage);
-    installerHeaderDansCarte();
+    installerPastilleTitre();
 
     // Recalage de la taille une fois l'overlay installé
     setTimeout(function() { carte.invalidateSize(); }, 300);
@@ -672,7 +655,7 @@
       else pl.parent.appendChild(conteneur);
       placeConteneurSauvegardee = null;
     }
-    if (!document.fullscreenElement) restaurerHeader();
+    retirerPastilleTitre();
     if (stylesConteneurSauvegardes) {
       Object.keys(stylesConteneurSauvegardes).forEach(function(p) {
         conteneur.style.setProperty(p, stylesConteneurSauvegardes[p]);
