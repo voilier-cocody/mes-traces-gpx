@@ -18,7 +18,7 @@
   var stylesConteneurSauvegardes = null; // Styles inline du conteneur avant le mode page entière
   var placeConteneurSauvegardee = null; // {parent, next} : position d'origine du conteneur dans le widget
   var boutonQuitterPage = null; // Bouton ✕ de sortie du mode page entière
-  var TEXTE_TITRE_BLOG = 'Le VOYAGE DE COCODY'; // texte de la pastille affichée en haut de la carte en mode immersif
+  var TEXTE_TITRE_BLOG = 'LE VOYAGE DE COCODY'; // texte de la pastille affichée en haut de la carte en mode immersif
   var pastilleTitre = null; // Div autonome "titre + ✕" affiché en haut de la carte en mode immersif
   var separateurSplit = null;   // Barre verticale draggable entre carte et lecture (mode split)
   // Constantes du découpage : AVANT l'appel à chargerRatioSplit() — les var sont
