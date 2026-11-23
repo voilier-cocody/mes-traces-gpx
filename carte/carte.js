@@ -578,11 +578,10 @@
   // Div autonome (indépendant du thème Blogger), créé par carte.js et enfant du
   // conteneur carte : en plein écran natif il est donc rendu (seuls les
   // descendants du fullscreenElement le sont). Centré sur la zone carte :
-  // --rs = % de largeur de la carte (100 = fenêtre entière, ratioSplit en split).
+  // left:50% du conteneur (qui fait 100vw en page entière, ratioSplit% en split).
   function installerPastilleTitre() {
     if (pastilleTitre || !carte) return; // déjà en place
     var conteneur = carte.getContainer();
-    conteneur.style.setProperty('--rs', splitActif ? ratioSplit : 100);
     pastilleTitre = document.createElement('div');
     pastilleTitre.className = 'pastille-titre';
     var titre = document.createElement('span');
@@ -598,7 +597,6 @@
     if (!pastilleTitre) return;
     if (pastilleTitre.parentNode) pastilleTitre.parentNode.removeChild(pastilleTitre);
     pastilleTitre = null;
-    if (carte) carte.getContainer().style.removeProperty('--rs');
   }
 
   function appliquerPageEntiere() {
@@ -1026,7 +1024,6 @@
     ratioSplit = Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, pct));
     var conteneurCarte = carte.getContainer();
     conteneurCarte.style.width = ratioSplit + '%';
-    conteneurCarte.style.setProperty('--rs', ratioSplit); // recentre la pastille titre pendant le drag
     if (panneauLecture) {
       panneauLecture.style.left = ratioSplit + '%';
       panneauLecture.style.right = 'auto';
