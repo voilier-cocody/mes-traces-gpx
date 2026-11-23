@@ -154,6 +154,27 @@
   }
   .btn-quitter-page-entiere:hover { background: #c0392b; }
 
+  /* --- HEADER DU BLOG AU-DESSUS DE LA CARTE (modes immersifs) --- */
+  .header-widget-en-mode {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1001; /* au-dessus des panneaux Leaflet (400), sous les contrôles (1000) */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  }
+  /* Contrôles Leaflet (zoom, plein écran, calques) et bouton ✕ descendus sous
+     la barre de titre : la hauteur --hh est posée en JS sur le conteneur */
+  .leaflet-container.avec-header .leaflet-top {
+    top: calc(var(--hh, 48px) + 10px);
+  }
+  .leaflet-container.avec-header .btn-quitter-page-entiere {
+    top: calc(var(--hh, 48px) + 10px);
+    left: auto;
+    right: 10px;
+    transform: none;
+  }
+
   /* --- INDICATEUR DE LECTURE (mode split) : zone radar "par ici" --- */
   .radar-lecture { background: none; border: none; }
   .radar-lecture .radar-anneaux {

@@ -18,6 +18,8 @@
   var stylesConteneurSauvegardes = null; // Styles inline du conteneur avant le mode page entière
   var placeConteneurSauvegardee = null; // {parent, next} : position d'origine du conteneur dans le widget
   var boutonQuitterPage = null; // Bouton ✕ de sortie du mode page entière
+  var placeHeaderSauvegardee = null; // {parent, next, header} : place d'origine du header-widget hors mode immersif
+  var SELECTEUR_HEADER_WIDGET = '.widget.header, .header-widget'; // titre du blog, affiché au-dessus de la carte en mode immersif
   var separateurSplit = null;   // Barre verticale draggable entre carte et lecture (mode split)
   // Constantes du découpage : AVANT l'appel à chargerRatioSplit() — les var sont
   // hissées mais pas leurs valeurs, déclarées plus bas elles seraient undefined ici
@@ -180,9 +182,18 @@
     function quitterSplitSiActif() {
       if (splitActif) basculerSplit();
     }
-    carte.on('exitFullscreen', quitterSplitSiActif);
+    carte.on('enterFullscreen', installerHeaderDansCarte);
+    carte.on('exitFullscreen', function() {
+      quitterSplitSiActif();
+      if (!pageEntiereActif) restaurerHeader();
+    });
     document.addEventListener('fullscreenchange', function() {
-      if (!document.fullscreenElement) quitterSplitSiActif();
+      if (document.fullscreenElement) {
+        installerHeaderDansCarte();
+      } else {
+        quitterSplitSiActif();
+        if (!pageEntiereActif) restaurerHeader();
+      }
     });
 
     // Si le lecteur déplace ou zoome lui-même la carte, on ne la lui reprend pas.
@@ -569,6 +580,38 @@
     if (boutonQuitterPage) boutonQuitterPage.style.display = splitActif ? 'none' : '';
   }
 
+  // --- HEADER DU BLOG AU-DESSUS DE LA CARTE (modes immersifs) ---
+  // En plein écran natif, seuls l'élément fullscreen et ses descendants sont
+  // rendus : le header-widget doit donc être DÉPLACÉ (pas cloné : pas d'id
+  // dupliqué) dans le conteneur carte, en barre absolute en haut.
+  function installerHeaderDansCarte() {
+    if (placeHeaderSauvegardee || !carte) return; // déjà en place
+    var header = document.querySelector(SELECTEUR_HEADER_WIDGET);
+    if (!header) return;
+    var conteneur = carte.getContainer();
+    if (conteneur.contains(header)) return;
+    placeHeaderSauvegardee = { parent: header.parentNode, next: header.nextSibling, header: header };
+    header.classList.add('header-widget-en-mode');
+    conteneur.insertBefore(header, conteneur.firstChild);
+    // Hauteur mesurée pour décaler contrôles Leaflet et bouton ✕ sous la barre
+    conteneur.style.setProperty('--hh', (header.offsetHeight || 48) + 'px');
+    conteneur.classList.add('avec-header');
+  }
+
+  function restaurerHeader() {
+    if (!placeHeaderSauvegardee) return;
+    var pl = placeHeaderSauvegardee;
+    pl.header.classList.remove('header-widget-en-mode');
+    if (pl.next) pl.parent.insertBefore(pl.header, pl.next);
+    else pl.parent.appendChild(pl.header);
+    placeHeaderSauvegardee = null;
+    if (carte) {
+      var conteneur = carte.getContainer();
+      conteneur.classList.remove('avec-header');
+      conteneur.style.removeProperty('--hh');
+    }
+  }
+
   function appliquerPageEntiere() {
     if (pageEntiereActif || !carte) return;
     var conteneur = carte.getContainer();
@@ -608,6 +651,7 @@
     });
     conteneur.appendChild(boutonQuitterPage);
     majVisibiliteBoutonQuitterPage();
+    installerHeaderDansCarte();
 
     // Recalage de la taille une fois l'overlay installé
     setTimeout(function() { carte.invalidateSize(); }, 300);
@@ -623,6 +667,7 @@
       else pl.parent.appendChild(conteneur);
       placeConteneurSauvegardee = null;
     }
+    if (!document.fullscreenElement) restaurerHeader();
     if (stylesConteneurSauvegardes) {
       Object.keys(stylesConteneurSauvegardes).forEach(function(p) {
         conteneur.style.setProperty(p, stylesConteneurSauvegardes[p]);
@@ -762,7 +807,12 @@
   });
   // Redimensionnement de la fenêtre en mode immersif : Leaflet doit recalculer
   window.addEventListener('resize', function() {
-    if (carte && estModeImmersif()) carte.invalidateSize({ animate: false });
+    if (!carte || !estModeImmersif()) return;
+    carte.invalidateSize({ animate: false });
+    // La barre de titre peut changer de hauteur (responsive) : re-mesurer
+    if (placeHeaderSauvegardee) {
+      carte.getContainer().style.setProperty('--hh', (placeHeaderSauvegardee.header.offsetHeight || 48) + 'px');
+    }
   });
 
   // Cache des articles déjà téléchargés : re-cliquer dans le même article
