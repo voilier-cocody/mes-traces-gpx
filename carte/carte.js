@@ -582,7 +582,11 @@
     conteneur.style.left = '0';
     conteneur.style.width = '100vw';
     conteneur.style.height = '100vh';
-    conteneur.style.zIndex = '100000'; // au-dessus du blog, sous le panneau split (100001)
+    // z-index max : au-dessus de tout le thème Blogger (sidebar sticky, header,
+    // menus avec des z-index élevés). Le panneau split (100001), le séparateur
+    // (100002) et le bouton ✕ (100003) restent visibles : enfants du conteneur,
+    // ils vivent dans son stacking context.
+    conteneur.style.zIndex = '2147483647';
     conteneur.style.margin = '0';
     document.body.style.overflow = 'hidden';
     pageEntiereActif = true;
