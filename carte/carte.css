@@ -140,7 +140,8 @@
   .btn-quitter-page-entiere {
     position: fixed;
     top: 10px;
-    right: 10px;
+    left: 50%;
+    transform: translateX(-50%); /* centrée en haut : le coin haut-droit est pris par le sélecteur de calques Leaflet */
     z-index: 100003; /* au-dessus du séparateur (100002) et du panneau (100001) */
     background: #e74c3c;
     color: #fff;
