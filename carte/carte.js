@@ -18,6 +18,8 @@
   var stylesConteneurSauvegardes = null; // Styles inline du conteneur avant le mode page entière
   var placeConteneurSauvegardee = null; // {parent, next} : position d'origine du conteneur dans le widget
   var boutonQuitterPage = null; // Bouton ✕ de sortie du mode page entière
+  var TEXTE_TITRE_BLOG = 'LE VOYAGE DE COCODY'; // texte de la pastille affichée en haut de la carte en mode immersif
+  var pastilleTitre = null; // Div autonome "titre + ✕" affiché en haut de la carte en mode immersif
   var separateurSplit = null;   // Barre verticale draggable entre carte et lecture (mode split)
   // Constantes du découpage : AVANT l'appel à chargerRatioSplit() — les var sont
   // hissées mais pas leurs valeurs, déclarées plus bas elles seraient undefined ici
@@ -180,9 +182,18 @@
     function quitterSplitSiActif() {
       if (splitActif) basculerSplit();
     }
-    carte.on('exitFullscreen', quitterSplitSiActif);
+    carte.on('enterFullscreen', installerPastilleTitre);
+    carte.on('exitFullscreen', function() {
+      quitterSplitSiActif();
+      if (!pageEntiereActif) retirerPastilleTitre();
+    });
     document.addEventListener('fullscreenchange', function() {
-      if (!document.fullscreenElement) quitterSplitSiActif();
+      if (document.fullscreenElement) {
+        installerPastilleTitre();
+      } else {
+        quitterSplitSiActif();
+        if (!pageEntiereActif) retirerPastilleTitre();
+      }
     });
 
     // Si le lecteur déplace ou zoome lui-même la carte, on ne la lui reprend pas.
@@ -563,10 +574,29 @@
            (carte && carte.getContainer().classList.contains('leaflet-fullscreen-on'));
   }
 
-  function majVisibiliteBoutonQuitterPage() {
-    // En mode split, le ✕ du panneau sert à quitter le split : on masque le
-    // bouton "page entière" pour éviter deux ✕ superposés en haut à droite
-    if (boutonQuitterPage) boutonQuitterPage.style.display = splitActif ? 'none' : '';
+  // --- PASTILLE "TITRE DU BLOG" AU-DESSUS DE LA CARTE (modes immersifs) ---
+  // Div autonome (indépendant du thème Blogger), créé par carte.js et enfant du
+  // conteneur carte : en plein écran natif il est donc rendu (seuls les
+  // descendants du fullscreenElement le sont). Centré sur la zone carte :
+  // left:50% du conteneur (qui fait 100vw en page entière, ratioSplit% en split).
+  function installerPastilleTitre() {
+    if (pastilleTitre || !carte) return; // déjà en place
+    var conteneur = carte.getContainer();
+    pastilleTitre = document.createElement('div');
+    pastilleTitre.className = 'pastille-titre';
+    var titre = document.createElement('span');
+    titre.className = 'titre-blog';
+    titre.textContent = TEXTE_TITRE_BLOG;
+    pastilleTitre.appendChild(titre);
+    // Le ✕ de sortie du mode page entière est intégré à la pastille
+    if (boutonQuitterPage) pastilleTitre.appendChild(boutonQuitterPage);
+    conteneur.insertBefore(pastilleTitre, conteneur.firstChild);
+  }
+
+  function retirerPastilleTitre() {
+    if (!pastilleTitre) return;
+    if (pastilleTitre.parentNode) pastilleTitre.parentNode.removeChild(pastilleTitre);
+    pastilleTitre = null;
   }
 
   function appliquerPageEntiere() {
@@ -607,7 +637,7 @@
       quitterPageEntiere();
     });
     conteneur.appendChild(boutonQuitterPage);
-    majVisibiliteBoutonQuitterPage();
+    installerPastilleTitre();
 
     // Recalage de la taille une fois l'overlay installé
     setTimeout(function() { carte.invalidateSize(); }, 300);
@@ -623,6 +653,7 @@
       else pl.parent.appendChild(conteneur);
       placeConteneurSauvegardee = null;
     }
+    retirerPastilleTitre();
     if (stylesConteneurSauvegardes) {
       Object.keys(stylesConteneurSauvegardes).forEach(function(p) {
         conteneur.style.setProperty(p, stylesConteneurSauvegardes[p]);
@@ -1171,7 +1202,6 @@
         // Le popup n'a plus lieu d'être : la carte est entièrement visible à gauche
         carte.closePopup(popupLecteur);
       }
-      majVisibiliteBoutonQuitterPage();
     } else {
       // Sortie du mode split : la carte reprend toute la largeur — ou la
       // pleine fenêtre si le mode page entière est actif (sinon la carte
@@ -1188,7 +1218,6 @@
         panneauLecture.parentNode.removeChild(panneauLecture);
       }
       panneauLecture = null;
-      majVisibiliteBoutonQuitterPage();
     }
   }
 

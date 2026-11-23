@@ -154,6 +154,44 @@
   }
   .btn-quitter-page-entiere:hover { background: #c0392b; }
 
+  /* --- PASTILLE "TITRE DU BLOG + ✕" EN HAUT (modes immersifs) --- */
+  /* Div autonome créé par carte.js, centré sur la zone carte (left:50% du
+     conteneur). Les icônes Leaflet (coins, z-index 1000) ne sont PAS déplacées. */
+  .leaflet-container .pastille-titre {
+    position: absolute !important;
+    top: 10px !important;
+    left: 50% !important; /* centrée sur le conteneur = la zone carte (100vw en page entière, ratioSplit% en split) */
+    transform: translateX(-50%) !important;
+    z-index: 1100 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 50px; /* entre le titre et la croix ✕ */
+    white-space: nowrap; /* une seule ligne */
+    max-width: 90%;
+    background: rgba(44, 62, 80, 0.92) !important;
+    color: #fff !important;
+    border-radius: 999px !important;
+    padding: 8px 28px !important; /* la pastille dépasse de chaque côté du texte */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+  }
+  .leaflet-container .pastille-titre .titre-blog {
+    font: normal 400 50px 'Chewy', cursive;
+    font-size: 30px !important;
+    line-height: 1.1;
+    color: #fff !important;
+    white-space: nowrap;
+  }
+  /* Le ✕ de sortie du mode page entière est intégré à la pastille */
+  .leaflet-container .pastille-titre .btn-quitter-page-entiere {
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
+    padding: 2px 8px !important;
+    font-size: 13px !important;
+  }
+
   /* --- INDICATEUR DE LECTURE (mode split) : zone radar "par ici" --- */
   .radar-lecture { background: none; border: none; }
   .radar-lecture .radar-anneaux {
