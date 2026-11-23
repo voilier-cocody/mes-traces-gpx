@@ -159,33 +159,36 @@
      centrée sur la zone carte (--rs = % de largeur carte, posé en JS). Les
      icônes Leaflet (coins, z-index 1000) ne sont PAS déplacées. */
   .leaflet-container .header-widget-en-mode {
-    position: absolute;
-    top: 10px;
-    left: calc(var(--rs, 100) * 0.5%);
-    transform: translateX(-50%);
-    z-index: 1100;
-    display: flex;
-    align-items: center;
+    position: absolute !important;
+    top: 10px !important;
+    left: calc(var(--rs, 100) * 0.5%) !important;
+    transform: translateX(-50%) !important;
+    z-index: 1100 !important;
+    display: flex !important;
+    align-items: center !important;
     gap: 10px;
     max-width: 80%;
-    background: rgba(44, 62, 80, 0.92);
-    color: #fff;
-    border-radius: 24px;
-    padding: 6px 14px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    background: rgba(44, 62, 80, 0.92) !important;
+    color: #fff !important;
+    border-radius: 24px !important;
+    padding: 6px 14px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
   }
   .leaflet-container .header-widget-en-mode h1,
   .leaflet-container .header-widget-en-mode h2,
   .leaflet-container .header-widget-en-mode .widget-title {
-    font-size: 15px;
-    margin: 0;
+    font-size: 15px !important;
+    margin: 0 !important;
   }
   /* Le ✕ de sortie du mode page entière est intégré à la pastille */
   .leaflet-container .header-widget-en-mode .btn-quitter-page-entiere {
-    position: static;
-    transform: none;
-    padding: 2px 8px;
-    font-size: 13px;
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
+    padding: 2px 8px !important;
+    font-size: 13px !important;
   }
 
   /* --- INDICATEUR DE LECTURE (mode split) : zone radar "par ici" --- */
