@@ -166,7 +166,7 @@
     z-index: 1100 !important;
     display: flex !important;
     align-items: center !important;
-    gap: 12px;
+    gap: 50px; /* entre le titre et la croix ✕ */
     white-space: nowrap; /* une seule ligne */
     max-width: 90%;
     background: rgba(44, 62, 80, 0.92) !important;
@@ -177,7 +177,7 @@
   }
   .leaflet-container .pastille-titre .titre-blog {
     font: normal 400 50px 'Chewy', cursive;
-    font-size: 25px !important;
+    font-size: 30px !important;
     line-height: 1.1;
     color: #fff !important;
     white-space: nowrap;
