@@ -19,7 +19,7 @@
   var placeConteneurSauvegardee = null; // {parent, next} : position d'origine du conteneur dans le widget
   var boutonQuitterPage = null; // Bouton ✕ de sortie du mode page entière
   var placeHeaderSauvegardee = null; // {parent, next, header} : place d'origine du header-widget hors mode immersif
-  var SELECTEUR_HEADER_WIDGET = '.widget.header, .header-widget'; // titre du blog, affiché au-dessus de la carte en mode immersif
+  var SELECTEUR_HEADER_WIDGET = '.header-widget, .widget.header'; // titre du blog, affiché en pastille au-dessus de la carte en mode immersif
   var separateurSplit = null;   // Barre verticale draggable entre carte et lecture (mode split)
   // Constantes du découpage : AVANT l'appel à chargerRatioSplit() — les var sont
   // hissées mais pas leurs valeurs, déclarées plus bas elles seraient undefined ici
@@ -574,12 +574,6 @@
            (carte && carte.getContainer().classList.contains('leaflet-fullscreen-on'));
   }
 
-  function majVisibiliteBoutonQuitterPage() {
-    // En mode split, le ✕ du panneau sert à quitter le split : on masque le
-    // bouton "page entière" pour éviter deux ✕ superposés en haut à droite
-    if (boutonQuitterPage) boutonQuitterPage.style.display = splitActif ? 'none' : '';
-  }
-
   // --- HEADER DU BLOG AU-DESSUS DE LA CARTE (modes immersifs) ---
   // En plein écran natif, seuls l'élément fullscreen et ses descendants sont
   // rendus : le header-widget doit donc être DÉPLACÉ (pas cloné : pas d'id
@@ -593,9 +587,12 @@
     placeHeaderSauvegardee = { parent: header.parentNode, next: header.nextSibling, header: header };
     header.classList.add('header-widget-en-mode');
     conteneur.insertBefore(header, conteneur.firstChild);
-    // Hauteur mesurée pour décaler contrôles Leaflet et bouton ✕ sous la barre
-    conteneur.style.setProperty('--hh', (header.offsetHeight || 48) + 'px');
+    // --rs = % de largeur occupé par la carte : la pastille reste centrée sur
+    // la zone carte même en mode split (100 = fenêtre entière)
+    conteneur.style.setProperty('--rs', splitActif ? ratioSplit : 100);
     conteneur.classList.add('avec-header');
+    // Le ✕ de sortie du mode page entière est intégré à la pastille
+    if (boutonQuitterPage) header.appendChild(boutonQuitterPage);
   }
 
   function restaurerHeader() {
@@ -608,7 +605,7 @@
     if (carte) {
       var conteneur = carte.getContainer();
       conteneur.classList.remove('avec-header');
-      conteneur.style.removeProperty('--hh');
+      conteneur.style.removeProperty('--rs');
     }
   }
 
@@ -650,7 +647,6 @@
       quitterPageEntiere();
     });
     conteneur.appendChild(boutonQuitterPage);
-    majVisibiliteBoutonQuitterPage();
     installerHeaderDansCarte();
 
     // Recalage de la taille une fois l'overlay installé
@@ -807,12 +803,7 @@
   });
   // Redimensionnement de la fenêtre en mode immersif : Leaflet doit recalculer
   window.addEventListener('resize', function() {
-    if (!carte || !estModeImmersif()) return;
-    carte.invalidateSize({ animate: false });
-    // La barre de titre peut changer de hauteur (responsive) : re-mesurer
-    if (placeHeaderSauvegardee) {
-      carte.getContainer().style.setProperty('--hh', (placeHeaderSauvegardee.header.offsetHeight || 48) + 'px');
-    }
+    if (carte && estModeImmersif()) carte.invalidateSize({ animate: false });
   });
 
   // Cache des articles déjà téléchargés : re-cliquer dans le même article
@@ -1043,6 +1034,7 @@
     ratioSplit = Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, pct));
     var conteneurCarte = carte.getContainer();
     conteneurCarte.style.width = ratioSplit + '%';
+    conteneurCarte.style.setProperty('--rs', ratioSplit); // recentre la pastille titre pendant le drag
     if (panneauLecture) {
       panneauLecture.style.left = ratioSplit + '%';
       panneauLecture.style.right = 'auto';
@@ -1221,7 +1213,6 @@
         // Le popup n'a plus lieu d'être : la carte est entièrement visible à gauche
         carte.closePopup(popupLecteur);
       }
-      majVisibiliteBoutonQuitterPage();
     } else {
       // Sortie du mode split : la carte reprend toute la largeur — ou la
       // pleine fenêtre si le mode page entière est actif (sinon la carte
@@ -1238,7 +1229,6 @@
         panneauLecture.parentNode.removeChild(panneauLecture);
       }
       panneauLecture = null;
-      majVisibiliteBoutonQuitterPage();
     }
   }
 

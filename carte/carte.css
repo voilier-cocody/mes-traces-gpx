@@ -154,25 +154,38 @@
   }
   .btn-quitter-page-entiere:hover { background: #c0392b; }
 
-  /* --- HEADER DU BLOG AU-DESSUS DE LA CARTE (modes immersifs) --- */
-  .header-widget-en-mode {
+  /* --- PASTILLE "TITRE DU BLOG + ✕" EN HAUT (modes immersifs) --- */
+  /* Le header-widget est déplacé dans le conteneur carte et affiché en pastille
+     centrée sur la zone carte (--rs = % de largeur carte, posé en JS). Les
+     icônes Leaflet (coins, z-index 1000) ne sont PAS déplacées. */
+  .leaflet-container .header-widget-en-mode {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 1001; /* au-dessus des panneaux Leaflet (400), sous les contrôles (1000) */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    top: 10px;
+    left: calc(var(--rs, 100) * 0.5%);
+    transform: translateX(-50%);
+    z-index: 1100;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 80%;
+    background: rgba(44, 62, 80, 0.92);
+    color: #fff;
+    border-radius: 24px;
+    padding: 6px 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   }
-  /* Contrôles Leaflet (zoom, plein écran, calques) et bouton ✕ descendus sous
-     la barre de titre : la hauteur --hh est posée en JS sur le conteneur */
-  .leaflet-container.avec-header .leaflet-top {
-    top: calc(var(--hh, 48px) + 10px);
+  .leaflet-container .header-widget-en-mode h1,
+  .leaflet-container .header-widget-en-mode h2,
+  .leaflet-container .header-widget-en-mode .widget-title {
+    font-size: 15px;
+    margin: 0;
   }
-  .leaflet-container.avec-header .btn-quitter-page-entiere {
-    top: calc(var(--hh, 48px) + 10px);
-    left: auto;
-    right: 10px;
+  /* Le ✕ de sortie du mode page entière est intégré à la pastille */
+  .leaflet-container .header-widget-en-mode .btn-quitter-page-entiere {
+    position: static;
     transform: none;
+    padding: 2px 8px;
+    font-size: 13px;
   }
 
   /* --- INDICATEUR DE LECTURE (mode split) : zone radar "par ici" --- */
