@@ -587,7 +587,7 @@
     conteneur.style.position = 'fixed';
     conteneur.style.top = '0';
     conteneur.style.left = '0';
-    conteneur.style.width = '100vw';
+    conteneur.style.width = splitActif ? ratioSplit + '%' : '100vw';
     conteneur.style.height = '100vh';
     // z-index max : au-dessus de tout le thème Blogger (sidebar sticky, header,
     // menus avec des z-index élevés). Le panneau split (100001), le séparateur
@@ -1173,9 +1173,11 @@
       }
       majVisibiliteBoutonQuitterPage();
     } else {
-      // Sortie du mode split : la carte reprend toute la largeur
+      // Sortie du mode split : la carte reprend toute la largeur — ou la
+      // pleine fenêtre si le mode page entière est actif (sinon la carte
+      // retomberait à la taille du widget)
       splitActif = false;
-      conteneurCarte.style.width = '';
+      conteneurCarte.style.width = pageEntiereActif ? '100vw' : '';
       carte.invalidateSize();
       supprimerRadar();
       if (separateurSplit && separateurSplit.parentNode) {
