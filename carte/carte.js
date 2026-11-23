@@ -19,7 +19,16 @@
   var placeConteneurSauvegardee = null; // {parent, next} : position d'origine du conteneur dans le widget
   var boutonQuitterPage = null; // Bouton ✕ de sortie du mode page entière
   var placeHeaderSauvegardee = null; // {parent, next, header} : place d'origine du header-widget hors mode immersif
-  var SELECTEUR_HEADER_WIDGET = '.header-widget, .widget.header'; // titre du blog, affiché en pastille au-dessus de la carte en mode immersif
+  var SELECTEUR_HEADER_WIDGET = '.header-widget, .widget.header, .widget.Header'; // fallback si le flag [i] n'est pas supporté
+  // Sélecteur insensible à la casse (Blogger génère parfois "widget Header") :
+  // le flag [i] de l'attribut class est prioritaire, le fallback sinon.
+  function trouverHeaderWidget() {
+    try {
+      return document.querySelector('[class~="header-widget" i], [class~="widget"][class~="header" i]');
+    } catch (e) {
+      return document.querySelector(SELECTEUR_HEADER_WIDGET);
+    }
+  }
   var separateurSplit = null;   // Barre verticale draggable entre carte et lecture (mode split)
   // Constantes du découpage : AVANT l'appel à chargerRatioSplit() — les var sont
   // hissées mais pas leurs valeurs, déclarées plus bas elles seraient undefined ici
@@ -580,7 +589,7 @@
   // dupliqué) dans le conteneur carte, en barre absolute en haut.
   function installerHeaderDansCarte() {
     if (placeHeaderSauvegardee || !carte) return; // déjà en place
-    var header = document.querySelector(SELECTEUR_HEADER_WIDGET);
+    var header = trouverHeaderWidget();
     if (!header) return;
     var conteneur = carte.getContainer();
     if (conteneur.contains(header)) return;
