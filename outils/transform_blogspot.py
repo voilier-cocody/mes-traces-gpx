@@ -18,9 +18,10 @@ Règles appliquées :
   sa légende, s'il y en a une, devient un <figcaption> sous la photo
 - les iframes YouTube sont normalisées dans <div class="video-container">
 - avec --photos REPERTOIRE : la date de prise de vue (EXIF) de la photo
-  originale est cherchée par nom de fichier et alimente data-date
-  (format "2024-07-15T14:32", aussi accepté par carte.js) ; photos non
-  trouvées ou sans date EXIF : pas de data-date, on passe à la suivante
+  originale est cherchée par nom de fichier (JPG, PNG, HEIC iPhone...)
+  et alimente data-date (format "2024-07-15T14:32", aussi accepté par
+  carte.js) ; photos non trouvées ou sans date EXIF : pas de data-date,
+  on passe à la suivante
 """
 
 import argparse
@@ -34,6 +35,13 @@ try:
     from PIL import Image  # Pillow, pour lire la date EXIF des photos
 except ImportError:  # pragma: no cover - environnement sans Pillow
     Image = None
+
+try:
+    from pillow_heif import register_heif_opener
+
+    register_heif_opener()  # photos iPhone (.HEIC) lisibles par Pillow
+except ImportError:  # pragma: no cover - HEIC non lisible, on passe
+    register_heif_opener = None
 
 # Tags EXIF : date de prise de vue, sinon date de dernière modification.
 EXIF_DATETIME_ORIGINAL = 36867
@@ -356,6 +364,12 @@ def main():
             print(
                 "AVERTISSEMENT : Pillow absent, dates EXIF ignorées "
                 "(pip install Pillow)",
+                file=sys.stderr,
+            )
+        elif register_heif_opener is None:
+            print(
+                "AVERTISSEMENT : pillow-heif absent, photos .HEIC (iPhone) "
+                "sans data-date (pip install pillow-heif)",
                 file=sys.stderr,
             )
         elif not os.path.isdir(args.photos):
