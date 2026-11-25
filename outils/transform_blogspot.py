@@ -14,11 +14,14 @@ Règles appliquées :
   la class "galerie-item" ; la légende d'une image (cellule tr-caption)
   est restituée en paragraphe <p> sous la galerie
 - les images consécutives sont regroupées dans <div class="galerie-grille">
+- chaque image est encapsulée dans <figure class="galerie-item"> ;
+  sa légende, s'il y en a une, devient un <figcaption> sous la photo
 - les iframes YouTube sont normalisées dans <div class="video-container">
 - avec --photos REPERTOIRE : la date de prise de vue (EXIF) de la photo
-  originale est cherchée par nom de fichier et alimente data-date
-  (format "2024-07-15T14:32", aussi accepté par carte.js) ; photos non
-  trouvées ou sans date EXIF : pas de data-date, on passe à la suivante
+  originale est cherchée par nom de fichier (JPG, PNG, HEIC iPhone...)
+  et alimente data-date (format "2024-07-15T14:32", aussi accepté par
+  carte.js) ; photos non trouvées ou sans date EXIF : pas de data-date,
+  on passe à la suivante
 """
 
 import argparse
@@ -32,6 +35,13 @@ try:
     from PIL import Image  # Pillow, pour lire la date EXIF des photos
 except ImportError:  # pragma: no cover - environnement sans Pillow
     Image = None
+
+try:
+    from pillow_heif import register_heif_opener
+
+    register_heif_opener()  # photos iPhone (.HEIC) lisibles par Pillow
+except ImportError:  # pragma: no cover - HEIC non lisible, on passe
+    register_heif_opener = None
 
 # Tags EXIF : date de prise de vue, sinon date de dernière modification.
 EXIF_DATETIME_ORIGINAL = 36867
@@ -225,8 +235,11 @@ class Transformer(HTMLParser):
             if caption and imgs:
                 imgs[-1].caption = caption
             elif caption and not imgs:
-                self.text_buf.append(caption)
-                self.flush_text()
+                if self.blocks and self.blocks[-1].kind == "img":
+                    self.blocks[-1].caption = caption
+                else:
+                    self.text_buf.append(caption)
+                    self.flush_text()
             if self.table_stack:
                 self.table_stack[-1]["imgs"].extend(imgs)
             else:
@@ -239,6 +252,8 @@ class Transformer(HTMLParser):
                     if self.table_stack:
                         state = self.table_stack[-1]
                         state["caption"] = (state["caption"] or "") + text
+                    elif self.blocks and self.blocks[-1].kind == "img":
+                        self.blocks[-1].caption = text
                     else:
                         self.text_buf.append(text)
                 self.caption_tag = None
@@ -285,11 +300,21 @@ def render(blocks):
     chunks = []
     gallery = []
 
+    def item_markup(g):
+        lines = [
+            '  <figure class="galerie-item">',
+            f"    {g.value}",
+        ]
+        if g.caption:
+            lines.append(f"    <figcaption>{g.caption}</figcaption>")
+        lines.append("  </figure>")
+        return "\n".join(lines)
+
     def flush_gallery():
         if gallery:
             chunks.append(
                 '<div class="galerie-grille">\n'
-                + "\n".join("  " + g.value for g in gallery)
+                + "\n".join(item_markup(g) for g in gallery)
                 + "\n</div>"
             )
             gallery.clear()
@@ -297,9 +322,6 @@ def render(blocks):
     for blk in blocks:
         if blk.kind == "img":
             gallery.append(blk)
-            if blk.caption:
-                flush_gallery()
-                chunks.append(f"<p>{blk.caption}</p>")
             continue
         flush_gallery()
         if blk.kind == "video":
@@ -342,6 +364,12 @@ def main():
             print(
                 "AVERTISSEMENT : Pillow absent, dates EXIF ignorées "
                 "(pip install Pillow)",
+                file=sys.stderr,
+            )
+        elif register_heif_opener is None:
+            print(
+                "AVERTISSEMENT : pillow-heif absent, photos .HEIC (iPhone) "
+                "sans data-date (pip install pillow-heif)",
                 file=sys.stderr,
             )
         elif not os.path.isdir(args.photos):
