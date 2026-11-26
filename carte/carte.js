@@ -349,7 +349,7 @@
               // En-tête draggable (poignée de déplacement) + bouton mode split
               // (icône "écran partagé" : un carré barré d'une ligne verticale,
               // masquée sur mobile/tablette où le mode split n'est pas proposé)
-              var petitEcran = window.innerWidth < 1024;
+              var petitEcran = window.innerWidth < 700;
               var boutonSplit = petitEcran ? '' :
                 '<button class="btn-split" title="Écran partagé : carte à gauche, lecture à droite" style="background: #3498db; color: #fff; border: none; border-radius: 4px; padding: 6px 10px; cursor: pointer; margin-left: 10px;">' +
                 '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="vertical-align: middle; display: block;">' +
