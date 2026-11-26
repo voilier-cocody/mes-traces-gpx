@@ -18,10 +18,11 @@ Règles appliquées :
   sa légende, s'il y en a une, devient un <figcaption> sous la photo
 - les iframes YouTube sont normalisées dans <div class="video-container">
 - avec --photos REPERTOIRE : la date de prise de vue (EXIF) de la photo
-  originale est cherchée par nom de fichier (JPG, PNG, HEIC iPhone...)
-  et alimente data-date (format "2024-07-15T14:32", aussi accepté par
-  carte.js) ; photos non trouvées ou sans date EXIF : pas de data-date,
-  on passe à la suivante
+  originale est cherchée par nom de fichier ET extension de l'URL
+  (insensible à la casse : un .HEIC n'est lu que si l'URL pointe
+  un .heic) et alimente data-date (format "2024-07-15T14:32", aussi
+  accepté par carte.js) ; photos non trouvées ou sans date EXIF : pas de
+  data-date, on passe à la suivante
 """
 
 import argparse
@@ -54,14 +55,25 @@ EXIF_DATE_RE = re.compile(
 )
 
 
+def normaliser_nom(nom):
+    """Clé de recherche d'une photo : minuscules, .jpeg ramené à .jpg
+    (même format) ; les autres extensions sont conservées telles quelles
+    (un .HEIC n'est lu que pour une URL .heic)."""
+    nom = nom.lower()
+    stem, ext = os.path.splitext(nom)
+    if ext == ".jpeg":
+        ext = ".jpg"
+    return stem + ext
+
+
 def index_photos(racine):
     """Indexe les photos d'un répertoire (récursif) par nom de fichier
-    sans extension, en minuscules : {"img_4274": "/chemin/IMG_4274.jpeg"}."""
+    normalisé (minuscules, .jpeg = .jpg) :
+    {"img_4274.jpg": "/chemin/IMG_4274.jpeg"}."""
     index = {}
     for dossier, _, fichiers in os.walk(racine):
         for nom in fichiers:
-            racine_nom, _ = os.path.splitext(nom)
-            index.setdefault(racine_nom.lower(), os.path.join(dossier, nom))
+            index.setdefault(normaliser_nom(nom), os.path.join(dossier, nom))
     return index
 
 
@@ -141,9 +153,10 @@ class Transformer(HTMLParser):
         date = d.get("data-date", "").strip()
         if not date and self.photos:
             self.stats["photos"] += 1
-            nom = os.path.basename(src.split("?")[0])
-            stem = os.path.splitext(nom)[0].lower()
-            chemin = self.photos.get(stem)
+            # nom + extension de l'URL (normalisés) : un .HEIC n'est lu
+            # que si l'URL pointe elle-même un fichier .heic
+            nom = normaliser_nom(os.path.basename(src.split("?")[0]))
+            chemin = self.photos.get(nom)
             trouve = date_exif(chemin) if chemin else None
             if trouve:
                 date = trouve
