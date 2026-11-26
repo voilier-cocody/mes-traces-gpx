@@ -55,14 +55,25 @@ EXIF_DATE_RE = re.compile(
 )
 
 
+def normaliser_nom(nom):
+    """Clé de recherche d'une photo : minuscules, .jpeg ramené à .jpg
+    (même format) ; les autres extensions sont conservées telles quelles
+    (un .HEIC n'est lu que pour une URL .heic)."""
+    nom = nom.lower()
+    stem, ext = os.path.splitext(nom)
+    if ext == ".jpeg":
+        ext = ".jpg"
+    return stem + ext
+
+
 def index_photos(racine):
     """Indexe les photos d'un répertoire (récursif) par nom de fichier
-    complet (avec extension) en minuscules :
-    {"img_4274.jpeg": "/chemin/IMG_4274.jpeg"}."""
+    normalisé (minuscules, .jpeg = .jpg) :
+    {"img_4274.jpg": "/chemin/IMG_4274.jpeg"}."""
     index = {}
     for dossier, _, fichiers in os.walk(racine):
         for nom in fichiers:
-            index.setdefault(nom.lower(), os.path.join(dossier, nom))
+            index.setdefault(normaliser_nom(nom), os.path.join(dossier, nom))
     return index
 
 
@@ -142,9 +153,9 @@ class Transformer(HTMLParser):
         date = d.get("data-date", "").strip()
         if not date and self.photos:
             self.stats["photos"] += 1
-            # nom + extension de l'URL : un .HEIC n'est lu que si l'URL
-            # pointe elle-même un fichier .heic
-            nom = os.path.basename(src.split("?")[0]).lower()
+            # nom + extension de l'URL (normalisés) : un .HEIC n'est lu
+            # que si l'URL pointe elle-même un fichier .heic
+            nom = normaliser_nom(os.path.basename(src.split("?")[0]))
             chemin = self.photos.get(nom)
             trouve = date_exif(chemin) if chemin else None
             if trouve:
