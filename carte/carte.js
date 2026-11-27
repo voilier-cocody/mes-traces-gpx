@@ -66,6 +66,25 @@
     return null;
   }
 
+  // Article de la page courante : si l'URL de la page (page article Blogger)
+  // correspond à une entrée de la table, c'est cet article qu'on ouvre en
+  // lecture immersive — pas le récit le plus récent. Comparaison sur le
+  // chemin uniquement (query ?m=1, domaine personnalisé ignorés).
+  function trouverArticlePageCourante() {
+    if (!liensArticles || liensArticles.length === 0) return null;
+    var cheminCourant;
+    try { cheminCourant = new URL(window.location.href).pathname.replace(/\/+$/, ''); } catch (e) { return null; }
+    if (!cheminCourant) return null;
+    for (var i = 0; i < liensArticles.length; i++) {
+      var art = liensArticles[i];
+      if (!art || !art.url) continue;
+      var cheminArticle;
+      try { cheminArticle = new URL(art.url).pathname.replace(/\/+$/, ''); } catch (e) { continue; }
+      if (cheminArticle && cheminArticle === cheminCourant) return art;
+    }
+    return null;
+  }
+
   // Extraction directe du XML pour récupérer l'horodatage exact de chaque point
   function chargerPointsEtDates(url, callback) {
     fetch(url)
@@ -720,11 +739,17 @@
           }
         }
 
+        // Sur une page article, c'est l'article en cours de lecture qui
+        // s'ouvre dans la liseuse (et la carte se centre sur sa trace),
+        // pas le récit le plus récent
+        var articlePageCourante = trouverArticlePageCourante();
+        if (articlePageCourante) meilleur = articlePageCourante;
+
         if (!splitActif) basculerSplit();
         if (meilleur) {
           // Ouverture au DÉBUT du récit : date de début, premier paragraphe,
           // radar sur le point de départ de la sortie
-          var dateDebut = (meilleur.debut) ? new Date(meilleur.debut) : meilleureFin;
+          var dateDebut = (meilleur.debut) ? new Date(meilleur.debut) : new Date(meilleur.fin);
           var dateTexte = dateDebut.toLocaleDateString('fr-FR', {
             day: 'numeric', month: 'long', year: 'numeric'
           });
